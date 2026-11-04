@@ -1,6 +1,6 @@
--- JJS HUB v2.6: sequential initialization + device badge + inspected additions.
+-- JJS HUB v2.7: sequential initialization + device badge + inspected additions.
 local __JJSBoot=(function()
- local b={done=0,failed=0,total=33,ready=false,screen=nil,label=nil,fill=nil}
+ local b={done=0,failed=0,total=34,ready=false,screen=nil,label=nil,fill=nil}
  local Players=game:GetService("Players")
  local Input=game:GetService("UserInputService")
  local mobile=Input.TouchEnabled and not Input.KeyboardEnabled
@@ -31,7 +31,7 @@ local __JJSBoot=(function()
   local scale=Instance.new("UIScale");local camera=workspace.CurrentCamera;local viewport=camera and camera.ViewportSize or Vector2.new(760,540);scale.Scale=math.min(1,(viewport.X-30)/500,(viewport.Y-30)/250);scale.Parent=panel
   local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,12);corner.Parent=panel
   local stroke=Instance.new("UIStroke");stroke.Color=Color3.fromRGB(255,122,26);stroke.Thickness=1;stroke.Parent=panel
-  local title=Instance.new("TextLabel");title.Size=UDim2.fromOffset(450,34);title.Position=UDim2.fromOffset(24,22);title.BackgroundTransparency=1;title.Font=Enum.Font.GothamBold;title.TextSize=22;title.TextColor3=Color3.fromRGB(255,242,224);title.TextXAlignment=Enum.TextXAlignment.Left;title.Text="JJS HUB  /  v2.6";title.Parent=panel
+  local title=Instance.new("TextLabel");title.Size=UDim2.fromOffset(450,34);title.Position=UDim2.fromOffset(24,22);title.BackgroundTransparency=1;title.Font=Enum.Font.GothamBold;title.TextSize=22;title.TextColor3=Color3.fromRGB(255,242,224);title.TextXAlignment=Enum.TextXAlignment.Left;title.Text="JJS HUB  /  v2.7";title.Parent=panel
   b:icon(panel,UDim2.fromOffset(26,72),34)
   local device=Instance.new("TextLabel");device.Size=UDim2.fromOffset(390,32);device.Position=UDim2.fromOffset(74,74);device.BackgroundTransparency=1;device.Font=Enum.Font.GothamBold;device.TextSize=15;device.TextColor3=b.color;device.TextXAlignment=Enum.TextXAlignment.Left;device.Text="Detected "..b.device.."  -  preparing modules";device.Parent=panel
   local label=Instance.new("TextLabel");label.Size=UDim2.fromOffset(450,48);label.Position=UDim2.fromOffset(24,120);label.BackgroundTransparency=1;label.Font=Enum.Font.Gotham;label.TextSize=12;label.TextColor3=Color3.fromRGB(200,160,180);label.TextXAlignment=Enum.TextXAlignment.Left;label.TextWrapped=true;label.Text="Device checked. Initializing interface...";label.Parent=panel;b.label=label
@@ -44,7 +44,7 @@ local __JJSBoot=(function()
   if self.label and self.label.Parent then self.label.Text=string.format("Loading %d / %d: %s",self.done+1,self.total,name) end
   task.wait(.025)
   local ok,err=xpcall(fn,function(e) return tostring(e) end)
-  if not ok then self.failed+=1;warn("JJS v2.6 ["..name.."]: "..tostring(err)) end
+  if not ok then self.failed+=1;warn("JJS v2.7 ["..name.."]: "..tostring(err)) end
   self.done+=1
   if self.fill and self.fill.Parent then self.fill.Size=UDim2.fromScale(math.clamp(self.done/self.total,0,1),1) end
   task.wait(.025)
@@ -119,10 +119,12 @@ local function bfAssistOff()
  if followPaint then followPaint() end
 end
 local T={bg=Color3.fromRGB(12,12,16),panel=Color3.fromRGB(18,18,24),p2=Color3.fromRGB(24,24,32),card=Color3.fromRGB(22,22,30),stroke=Color3.fromRGB(40,40,55),acc=Color3.fromRGB(168,85,255),txt=Color3.fromRGB(235,235,245),dim=Color3.fromRGB(140,140,160),mut=Color3.fromRGB(90,90,110),ok=Color3.fromRGB(80,200,120),warn=Color3.fromRGB(255,190,90)}
+local attachTooltip
 local function make(class,parent,props)
  local o=Instance.new(class)
  local ok,err=pcall(function() for k,v in pairs(props or {}) do o[k]=v end;o.Parent=parent end)
  if not ok then o:Destroy();error("Cannot create "..class..": "..tostring(err),2) end
+ if attachTooltip then pcall(attachTooltip,o) end
  return o
 end
 local function connect(signal,fn) local c=signal:Connect(fn); table.insert(conns,c); return c end
@@ -148,6 +150,85 @@ local function stroke(o) make("UIStroke",o,{Color=T.stroke,Thickness=1}) end
 end)
 
 local gui=make("ScreenGui",PG,{Name="JJS HUB",ResetOnSpawn=false,DisplayOrder=999,ZIndexBehavior=Enum.ZIndexBehavior.Sibling})
+-- Universal tooltip system: hover on PC, long-press on touch.
+-- Controls can override the generated description with SetAttribute("Tooltip", ...).
+local tooltipLayer=Instance.new("ScreenGui");tooltipLayer.Name="JJSTooltips";tooltipLayer.ResetOnSpawn=false;tooltipLayer.DisplayOrder=1005;tooltipLayer.IgnoreGuiInset=true;tooltipLayer.Parent=PG
+local tooltipBox=Instance.new("Frame");tooltipBox.Name="TooltipBox";tooltipBox.Visible=false;tooltipBox.BackgroundColor3=Color3.fromRGB(22,15,12);tooltipBox.BackgroundTransparency=.04;tooltipBox.BorderSizePixel=0;tooltipBox.Size=UDim2.fromOffset(230,0);tooltipBox.AutomaticSize=Enum.AutomaticSize.Y;tooltipBox.ZIndex=1000;tooltipBox.Parent=tooltipLayer
+local tooltipCorner=Instance.new("UICorner");tooltipCorner.CornerRadius=UDim.new(0,7);tooltipCorner.Parent=tooltipBox
+local tooltipStroke=Instance.new("UIStroke");tooltipStroke.Color=Color3.fromRGB(255,138,40);tooltipStroke.Thickness=1;tooltipStroke.Parent=tooltipBox
+local tooltipPad=Instance.new("UIPadding");tooltipPad.PaddingLeft=UDim.new(0,9);tooltipPad.PaddingRight=UDim.new(0,9);tooltipPad.PaddingTop=UDim.new(0,7);tooltipPad.PaddingBottom=UDim.new(0,7);tooltipPad.Parent=tooltipBox
+local tooltipText=Instance.new("TextLabel");tooltipText.BackgroundTransparency=1;tooltipText.Size=UDim2.new(1,0,0,0);tooltipText.AutomaticSize=Enum.AutomaticSize.Y;tooltipText.TextWrapped=true;tooltipText.TextXAlignment=Enum.TextXAlignment.Left;tooltipText.TextYAlignment=Enum.TextYAlignment.Top;tooltipText.Font=Enum.Font.Gotham;tooltipText.TextSize=12;tooltipText.TextColor3=Color3.fromRGB(255,242,224);tooltipText.ZIndex=1001;tooltipText.Parent=tooltipBox
+local tooltipToken=0
+local function showTooltip(obj, message, pos)
+ tooltipToken+=1;tooltipBox.Visible=true;tooltipText.Text=message
+ local cam=workspace.CurrentCamera;local v=cam and cam.ViewportSize or Vector2.new(800,600)
+ local x=pos and pos.X or (obj.AbsolutePosition.X+obj.AbsoluteSize.X/2)
+ local y=pos and pos.Y or (obj.AbsolutePosition.Y+obj.AbsoluteSize.Y+6)
+ x=math.clamp(x+10,6,v.X-240);y=math.clamp(y+10,6,v.Y-110)
+ tooltipBox.Position=UDim2.fromOffset(x,y)
+ local token=tooltipToken;task.delay(3.5,function() if tooltipToken==token then tooltipBox.Visible=false end end)
+end
+local function hideTooltip() tooltipToken+=1;tooltipBox.Visible=false end
+local tooltipDescriptions={
+ ["Auto Blackflash"]="Automatically performs the Black Flash input sequence when the script detects the required timing.",
+ ["Triple Jump (3x LMB > 100ms > Jump > 50ms > LMB)"]="Runs the configured triple-jump input sequence. Timing depends on the game and current action.",
+ ["Auto Blackflash Chain"]="Repeats the Black Flash sequence as a chain while enabled.",
+ ["Auto Lock On"]="Automatically keeps the camera locked onto the selected target.",
+ ["Include NPCs"]="Allows NPCs to be selected as lock-on targets, not just players.",
+ ["Pull To Target"]="Applies the configured pull behavior toward the current target.",
+ ["Lock Distance"]="Maximum distance used when searching for or maintaining a target.",
+ ["Pull Strength"]="Adjusts the strength of the pull effect. Higher values are stronger.",
+ ["Todo Macro"]="Enables the Todo macro sequence. Use only when you are ready for its automated inputs.",
+ ["Perfect Clap"]="Enables the timing-assisted clap input. Adjust the delay below to match your timing.",
+ ["Clap delay"]="Delay, in milliseconds, used by the Perfect Clap timing.",
+ ["Follow Behind + Sprint"]="Follows the selected player from behind and attempts to sprint while following.",
+ ["Automatic Pathfinding Jumps"]="Allows the follow routine to trigger jumps while navigating obstacles.",
+ ["Use Front / Side / Back Dashes"]="Allows the follow routine to use dash actions to keep up with its target.",
+ ["Slow Spin"]="Rotates your character slowly while enabled. Adjust Spin speed below.",
+ ["Invisible (Local Only)"]="Applies a local-only invisibility effect; other players may still see your character.",
+ ["Speed"]="Enables the custom walk-speed setting. Change Walk speed below.",
+ ["Build Speed"]="Gradually increases movement speed while moving, up to the configured maximum.",
+ ["Starting speed"]="Movement speed at the beginning of Build Speed.",
+ ["Speed gained per second"]="How quickly Build Speed increases movement speed.",
+ ["Maximum built speed"]="Upper limit for Build Speed.",
+ ["Reset speed when stopped"]="Resets the accumulated speed when movement stops.",
+ ["Jump Power"]="Enables the custom jump-power setting.",
+ ["Grounded velocity jump assist"]="Adds a jump assist when the character is grounded.",
+ ["Unload"]="Stops the hub and disconnects its active UI and script connections.",
+}
+local function tooltipMessage(obj)
+ local custom=obj:GetAttribute("Tooltip")
+ if typeof(custom)=="string" and custom~="" then return custom end
+ local label=obj:IsA("TextBox") and (obj.PlaceholderText~="" and obj.PlaceholderText or obj.Text) or obj.Text
+ if label and label~="" then
+  if tooltipDescriptions[label] then return tooltipDescriptions[label] end
+  if obj:IsA("TextButton") then return "Tap/click to activate: "..label end
+  if obj:IsA("TextBox") then return "Enter a value here. "..label end
+  if obj:IsA("TextLabel") then return label end
+ end
+ return nil
+end
+attachTooltip=function(obj)
+ if not obj:IsA("GuiObject") or obj:GetAttribute("TooltipDisabled") then return end
+ local msg=tooltipMessage(obj)
+ if not msg then return end
+ if UIS.MouseEnabled then
+  obj.MouseEnter:Connect(function() showTooltip(obj,tooltipMessage(obj) or msg) end)
+  obj.MouseLeave:Connect(hideTooltip)
+ end
+ if UIS.TouchEnabled then
+  local startInput,startPos=nil,nil
+  obj.InputBegan:Connect(function(input)
+   if input.UserInputType~=Enum.UserInputType.Touch then return end
+   startInput=input;startPos=input.Position
+   local token=tooltipToken+1;tooltipToken=token
+   task.delay(.55,function()
+    if startInput==input and tooltipToken==token then showTooltip(obj,tooltipMessage(obj) or msg,startPos) end
+   end)
+  end)
+  obj.InputEnded:Connect(function(input) if input==startInput then startInput=nil end end)
+ end
+end
 -- Key gate: join Discord to get the key, then unlock the hub
 local SCRIPT_KEY="J1nxhub01932456" -- post this key in your Discord
 local KEY_FILE="JJSHub_key.txt"
@@ -169,7 +250,7 @@ local scale=make("UIScale",main,{Scale=1})
 local top=make("Frame",main,{Size=UDim2.new(1,0,0,44),BackgroundColor3=T.panel,BorderSizePixel=0,Active=true})
 corner(top,12)
 make("Frame",top,{Size=UDim2.new(1,0,0,14),Position=UDim2.new(0,0,1,-14),BackgroundColor3=T.panel,BorderSizePixel=0})
-make("TextLabel",top,{Size=UDim2.fromOffset(225,44),Position=UDim2.fromOffset(16,0),BackgroundTransparency=1,Text="JJS HUB v2.6",TextColor3=T.txt,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left})
+make("TextLabel",top,{Size=UDim2.fromOffset(225,44),Position=UDim2.fromOffset(16,0),BackgroundTransparency=1,Text="JJS HUB v2.7",TextColor3=T.txt,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left})
 local badge=make("TextLabel",top,{Size=UDim2.fromOffset(48,18),Position=UDim2.new(0,220,.5,-9),BackgroundColor3=T.p2,Text="325",TextColor3=T.acc,Font=Enum.Font.GothamBold,TextSize=11}); corner(badge,4)
 local DISCORD_URL="https://discord.gg/RrQQh6B4nP"
 local discordBtn=make("TextButton",top,{Size=UDim2.fromOffset(86,28),Position=UDim2.new(1,-130,.5,-14),BackgroundColor3=Color3.fromRGB(88,101,242),Text="Discord",TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=12}); corner(discordBtn,6)
@@ -335,6 +416,7 @@ for i,cat in ipairs(cats) do
   end
  end)
 end
+for name,nav in pairs(buttons) do nav:SetAttribute("Tooltip","Open the "..name.." module category.") end
 
 -- Responsive navigation: polished phone layout with large touch targets.
 local sideLayout=side:FindFirstChildOfClass("UIListLayout")
@@ -353,31 +435,33 @@ local function applyResponsiveLayout()
   scale.Scale=math.min(.78,(viewport.X-28)/760,(viewport.Y-48)/540)
   scale.Scale=math.max(.38,scale.Scale)
   top.Size=UDim2.new(1,0,0,52)
+  -- Mobile: move module/category navigation into a compact left sidebar.
+  local navWidth=82
   side.Position=UDim2.fromOffset(0,52)
-  side.Size=UDim2.new(1,0,0,54)
-  side.ScrollingDirection=Enum.ScrollingDirection.X
-  side.AutomaticCanvasSize=Enum.AutomaticSize.X
+  side.Size=UDim2.new(0,navWidth,1,-52)
+  side.ScrollingDirection=Enum.ScrollingDirection.Y
+  side.AutomaticCanvasSize=Enum.AutomaticSize.Y
   side.CanvasSize=UDim2.new()
-  side.ScrollBarThickness=0
+  side.ScrollBarThickness=2
   side.BackgroundColor3=T.panel
-  if sideLayout then sideLayout.FillDirection=Enum.FillDirection.Horizontal;sideLayout.Padding=UDim.new(0,8) end
+  if sideLayout then sideLayout.FillDirection=Enum.FillDirection.Vertical;sideLayout.Padding=UDim.new(0,4) end
   local sidePad=side:FindFirstChildOfClass("UIPadding")
   if sidePad then
    sidePad.PaddingTop=UDim.new(0,6);sidePad.PaddingBottom=UDim.new(0,6)
-   sidePad.PaddingLeft=UDim.new(0,10);sidePad.PaddingRight=UDim.new(0,10)
+   sidePad.PaddingLeft=UDim.new(0,4);sidePad.PaddingRight=UDim.new(0,4)
   end
   for name,nav in pairs(buttons) do
-   nav.Size=UDim2.fromOffset(112,42);nav.TextSize=13
-   nav.TextWrapped=false
+   nav.Size=UDim2.new(1,0,0,34);nav.TextSize=10
+   nav.TextWrapped=true
    nav.BackgroundTransparency=0
    nav.BackgroundColor3=pages[name] and pages[name].Visible and T.acc or T.p2
    nav.TextColor3=pages[name] and pages[name].Visible and Color3.fromRGB(28,14,6) or T.dim
    nav.Font=pages[name] and pages[name].Visible and Enum.Font.GothamBold or Enum.Font.GothamMedium
   end
   for _,child in ipairs(side:GetChildren()) do if child:IsA("TextLabel") then child.Visible=false end end
-  content.Position=UDim2.fromOffset(0,106)
-  content.Size=UDim2.new(1,0,1,-106)
-  title.TextSize=16;title.Position=UDim2.fromOffset(14,9)
+  content.Position=UDim2.fromOffset(navWidth,52)
+  content.Size=UDim2.new(1,-navWidth,1,-52)
+  title.TextSize=13;title.Position=UDim2.fromOffset(8,7)
   discordBtn.Visible=false
   badge.Size=UDim2.fromOffset(42,20);badge.Position=UDim2.new(0,142,.5,-10)
   close.Size=UDim2.fromOffset(40,40);close.Position=UDim2.new(1,-46,.5,-20)
@@ -435,6 +519,8 @@ local function card(p,name,sub)
 end
 local function toggle(p,name,get,set)
  local r=make("TextButton",p,{Size=UDim2.new(1,0,0,UIS.TouchEnabled and 48 or 40),BackgroundTransparency=1,Text="",LayoutOrder=nextOrder(p)+2})
+ r:SetAttribute("Tooltip",tooltipDescriptions[name] or ("Toggle "..name.." on or off."))
+ attachTooltip(r)
  make("TextLabel",r,{Size=UDim2.new(1,-50,1,0),BackgroundTransparency=1,Text=name,TextColor3=T.txt,Font=Enum.Font.Gotham,TextSize=UIS.TouchEnabled and 14 or 12,TextXAlignment=Enum.TextXAlignment.Left})
  local track=make("Frame",r,{Size=UIS.TouchEnabled and UDim2.fromOffset(44,24) or UDim2.fromOffset(36,18),Position=UIS.TouchEnabled and UDim2.new(1,-44,.5,-12) or UDim2.new(1,-36,.5,-9),BackgroundColor3=T.p2,BorderSizePixel=0}); corner(track,9)
  local knob=make("Frame",track,{Size=UIS.TouchEnabled and UDim2.fromOffset(18,18) or UDim2.fromOffset(14,14),Position=UDim2.new(0,2,.5,UIS.TouchEnabled and -9 or -7),BackgroundColor3=Color3.new(1,1,1),BorderSizePixel=0}); corner(knob,7)
@@ -455,6 +541,8 @@ local c=card(pages.Macros,"Follow-up","")
 toggle(c,"Auto Blackflash",function() return enabled end,function(v) enabled=v end)
 local function moduleSlider(parent,name,min,max,initial,suffix,get,set)
  local r=make("Frame",parent,{Size=UDim2.new(1,0,0,52),BackgroundTransparency=1,LayoutOrder=nextOrder(parent)+2})
+ r:SetAttribute("Tooltip",tooltipDescriptions[name] or ("Adjust "..name.." using the slider."))
+ attachTooltip(r)
  make("TextLabel",r,{Size=UDim2.new(.7,0,0,14),BackgroundTransparency=1,Text=name,TextColor3=T.txt,Font=Enum.Font.Gotham,TextSize=12,TextXAlignment=Enum.TextXAlignment.Left})
  local value=make("TextLabel",r,{Size=UDim2.new(.3,0,0,14),Position=UDim2.fromScale(.7,0),BackgroundTransparency=1,Text=tostring(get())..suffix,TextColor3=T.acc,Font=Enum.Font.GothamBold,TextSize=11,TextXAlignment=Enum.TextXAlignment.Right})
  local bar=make("TextButton",r,{Size=UDim2.new(1,0,0,20),Position=UDim2.fromOffset(0,26),BackgroundColor3=Color3.fromRGB(40,40,52),BorderSizePixel=0,Text=""}); corner(bar,4)
@@ -496,6 +584,8 @@ connect(lockModeBtn.Activated,function()
 end)
 local function lockSlider(name,min,max,initial,suffix,get,set)
  local r=make("Frame",lc,{Size=UDim2.new(1,0,0,44),BackgroundTransparency=1,LayoutOrder=nextOrder(lc)+2})
+ r:SetAttribute("Tooltip",tooltipDescriptions[name] or ("Adjust "..name.." using the slider."))
+ attachTooltip(r)
  make("TextLabel",r,{Size=UDim2.new(.7,0,0,14),BackgroundTransparency=1,Text=name,TextColor3=T.txt,Font=Enum.Font.Gotham,TextSize=12,TextXAlignment=Enum.TextXAlignment.Left})
  local value=make("TextLabel",r,{Size=UDim2.new(.3,0,0,14),Position=UDim2.fromScale(.7,0),BackgroundTransparency=1,Text=tostring(get())..suffix,TextColor3=T.acc,Font=Enum.Font.GothamBold,TextSize=11,TextXAlignment=Enum.TextXAlignment.Right})
  local bar=make("TextButton",r,{Size=UDim2.new(1,0,0,14),Position=UDim2.fromOffset(0,22),BackgroundColor3=Color3.fromRGB(40,40,52),BorderSizePixel=0,Text=""}); corner(bar,4)
@@ -2282,9 +2372,201 @@ end)
 
 ;__JJSBoot:run("Loading Settings and Device Details",function()
  -- JJS25: Loading Settings and Device Details
- local box=card(pages.Settings,"v2.6 Device and Loading","")
+ local box=card(pages.Settings,"v2.7 Device and Loading","")
  make("TextLabel",box,{Size=UDim2.new(1,0,0,125),BackgroundTransparency=1,Text="Detected: "..__JJSBoot.device.."\nBlue monitor: PC. Yellow phone: touch-first/mobile. Hybrid touch + keyboard is classed PC. This is input-capability detection, not exact hardware identification.\nModules initialize sequentially with short yields. New optional features start OFF. Original key gate remains. Optional additions are included; further modules remain pending review.",TextWrapped=true,TextColor3=T.mut,Font=Enum.Font.Gotham,TextSize=11,LayoutOrder=3})
 
+end)
+
+
+;__JJSBoot:run("Auto Parry - animation profiles",function()
+ local S={enabled=false,capture=false,alive=true,focused=true,generation=0,owned=false,keyAttempted=false,range=12,arc=120,wall=true,team=true,enemyFacing=true,timeMs=0,holdMs=60,cooldownMs=250,lastPress=-math.huge,rules={},observed=nil,confirmed=false,poll=0,sent=0}
+ local hooks,connections,jobs={},{},{}
+ local repaint=nil
+ local Http=game:GetService("HttpService")
+ local box=card(pages.Combat,"Auto Parry","")
+ local function label(text,height)
+  return make("TextLabel",box,{Size=UDim2.new(1,0,0,height or 44),BackgroundTransparency=1,Text=text,TextWrapped=true,TextColor3=T.mut,Font=Enum.Font.Gotham,TextSize=UIS.TouchEnabled and 13 or 11,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=nextOrder(box)+2})
+ end
+ local info=label("Animation-profile timed block, not a universal counter. Add only tested blockable attack IDs. No guessed IDs/windows are preloaded. Default block binding: F.",76)
+ local status=label("OFF - no attack profiles configured.",56)
+ local observed=label("Observed attack animation: none. Capture an isolated attack in a controlled test.",56)
+ local function say(text) if status.Parent then status.Text=text end end
+ local function listen(signal,fn) local c=signal:Connect(fn);table.insert(connections,c);return c end
+ local function button(name,fn)
+  local b=make("TextButton",box,{Size=UDim2.new(1,0,0,44),BackgroundColor3=T.p2,Text=name,TextColor3=T.txt,Font=Enum.Font.GothamBold,TextSize=12,TextWrapped=true,LayoutOrder=nextOrder(box)+2});corner(b,6)
+  b:SetAttribute("Tooltip",name);attachTooltip(b)
+  listen(b.Activated,function() local ok,e=pcall(fn);if not ok then say("Action failed: "..tostring(e)) end end)
+  return b
+ end
+ local function rig()
+  local c=LP.Character;local h=c and c:FindFirstChildOfClass("Humanoid");local r=c and c:FindFirstChild("HumanoidRootPart")
+  if h and r and h.Health>0 then return c,h,r end
+ end
+ local function release()
+  if S.keyAttempted and okVIM and VIM then pcall(function() VIM:SendKeyEvent(false,Enum.KeyCode.F,false,game) end) end
+  S.keyAttempted=false;S.ownerJob=nil
+  if S.owned then busy=false;S.owned=false end
+  pcall(function() if gui.Parent then gui:SetAttribute("AutoParryHolding",false) end end)
+ end
+ local function cancel(reason)
+  S.generation+=1
+  release()
+  if reason then say(reason) end
+ end
+ local function hasRules()
+  for _,r in pairs(S.rules) do if r.blockable==true then return true end end
+  return false
+ end
+ local function gate()
+  if not S.alive or not S.enabled or not S.focused or not running or not scriptsActive() or UIS:GetFocusedTextBox() then return false end
+  if busy or manualSequenceBusy or todoBusy or tripleJumpBusy then return false end
+  if gui:GetAttribute("FlingSequenceActive") or gui:GetAttribute("BlackflashChainV2Active") or gui:GetAttribute("BlackflashChainV3Active") then return false end
+  return rig()~=nil
+ end
+ local function teammate(player) return not LP.Neutral and not player.Neutral and LP.Team~=nil and player.Team==LP.Team end
+ local function eligible(player,character)
+  if player==LP or player.Parent~=Players or player.Character~=character or S.team and teammate(player) then return false end
+  local own,hum,root=rig();local enemy=character and character:FindFirstChild("HumanoidRootPart");local eh=character and character:FindFirstChildOfClass("Humanoid")
+  if not own or not enemy or not eh or eh.Health<=0 then return false end
+  local delta=enemy.Position-root.Position;local flat=Vector3.new(delta.X,0,delta.Z)
+  if delta.Magnitude>S.range or flat.Magnitude<.05 then return false end
+  local facing=Vector3.new(root.CFrame.LookVector.X,0,root.CFrame.LookVector.Z)
+  if facing.Magnitude<.05 or facing.Unit:Dot(flat.Unit)<math.cos(math.rad(S.arc/2)) then return false end
+  if S.enemyFacing then local look=Vector3.new(enemy.CFrame.LookVector.X,0,enemy.CFrame.LookVector.Z);if look.Magnitude<.05 or look.Unit:Dot(-flat.Unit)<.1 then return false end end
+  if S.wall then
+   local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude;params.FilterDescendantsInstances={own};params.RespectCanCollide=true
+   local origin=root.Position+Vector3.new(0,1,0);local destination=enemy.Position+Vector3.new(0,1,0)
+   local hit=workspace:Raycast(origin,destination-origin,params)
+   if hit and not hit.Instance:IsDescendantOf(character) then return false end
+  end
+  return true
+ end
+ local function onAnimation(player,character,track)
+  if not S.alive or not(S.enabled or S.capture) or not eligible(player,character) then return end
+  local animation=track.Animation;local id=animation and animation.AnimationId:match("%d+")
+  if not id then return end
+  if S.capture then
+   S.observed={id=id,player=player.DisplayName}
+   if observed.Parent then observed.Text="Observed: "..id.." | "..player.DisplayName..". Observation does NOT prove this animation is a blockable attack." end
+  end
+  local rule=S.rules[id]
+  if not gate() or not rule or rule.blockable~=true or jobs[player] or track.TimePosition>rule.at+.06 then return end
+  local job={generation=S.generation,character=LP.Character};jobs[player]=job
+  task.spawn(function()
+   local deadline=os.clock()+math.min(4,rule.at+1)
+   local function valid()
+    return S.alive and job.generation==S.generation and LP.Character==job.character and gate() and player.Character==character and track.IsPlaying and track.Speed>0 and eligible(player,character)
+   end
+   local ok,e=pcall(function()
+    while valid() and track.TimePosition<rule.at and os.clock()<deadline do RS.Heartbeat:Wait() end
+    if not valid() or os.clock()>=deadline or track.TimePosition>rule.at+.06 then return end
+    if os.clock()-S.lastPress<S.cooldownMs/1000 then return end
+    local manual=false;pcall(function() manual=UIS:IsKeyDown(Enum.KeyCode.F) end);if manual then return end
+    if not okVIM or not VIM then S.enabled=false;if repaint then repaint() end;say("Input simulation unavailable. Auto Parry disabled.");return end
+    -- Acquire the shared input lock before yielding or sending a key.
+    busy=true;S.owned=true;S.ownerJob=job;S.keyAttempted=true;S.lastPress=os.clock();gui:SetAttribute("AutoParryHolding",true)
+    VIM:SendKeyEvent(true,Enum.KeyCode.F,false,game)
+    S.sent+=1;say("Timed F input sent: "..id.." | total "..S.sent..". Parry success is not confirmed.")
+    local holdUntil=os.clock()+S.holdMs/1000
+    while S.alive and S.owned and job.generation==S.generation and running and S.focused and LP.Character==job.character and scriptsActive() and not UIS:GetFocusedTextBox() and os.clock()<holdUntil do RS.Heartbeat:Wait() end
+   end)
+   if jobs[player]==job then jobs[player]=nil end
+   -- Only this job's acquired hold may be released; no other job's lock.
+   if S.ownerJob==job then S.ownerJob=nil;release() end
+   if not ok then
+    if S.owned and S.ownerJob==nil then release() end
+    S.enabled=false;S.generation+=1;if repaint then repaint() end;say("Auto Parry input failed: "..tostring(e))
+   end
+  end)
+ end
+ local function attach(player)
+  if player==LP then return end
+  local c=player.Character;local h=c and c:FindFirstChildOfClass("Humanoid");local a=h and h:FindFirstChildOfClass("Animator")
+  local old=hooks[player]
+  if old and old.animator==a and old.character==c then return end
+  if old then old.connection:Disconnect();hooks[player]=nil end
+  if a then hooks[player]={animator=a,character=c,connection=a.AnimationPlayed:Connect(function(track) onAnimation(player,c,track) end)} end
+ end
+ tooltipDescriptions["Auto Parry"]="Sends a timed F block only for your configured blockable attack animation IDs. No universal counter or success guarantee. Pauses for menus, typing and other macros."
+ tooltipDescriptions["Capture nearby attack animation IDs"]="Shows nearby players' animation IDs for manual testing. It does not classify them as attacks or automatically enable them."
+ repaint=toggle(box,"Auto Parry",function() return S.enabled end,function(v)
+  if v and not hasRules() then say("Add at least one tested blockable attack profile first.");return end
+  cancel();S.enabled=v;say(v and "ON - waiting for configured attacks." or "OFF - pending reactions cancelled.")
+ end)
+ toggle(box,"Capture nearby attack animation IDs",function() return S.capture end,function(v) S.capture=v end)
+ toggle(box,"Auto Parry wall check",function() return S.wall end,function(v) S.wall=v;cancel() end)
+ toggle(box,"Auto Parry ignore teammates",function() return S.team end,function(v) S.team=v;cancel() end)
+ toggle(box,"Require attacker facing me",function() return S.enemyFacing end,function(v) S.enemyFacing=v;cancel() end)
+ moduleSlider(box,"Parry distance limit",2,25,12," studs",function() return S.range end,function(v) S.range=v;cancel() end)
+ moduleSlider(box,"Guard-facing arc",30,180,120," deg",function() return S.arc end,function(v) S.arc=v;cancel() end)
+ moduleSlider(box,"Trigger at animation time",0,3000,0," ms",function() return S.timeMs end,function(v) S.timeMs=v end)
+ moduleSlider(box,"F hold duration",20,250,60," ms",function() return S.holdMs end,function(v) S.holdMs=v;cancel() end)
+ moduleSlider(box,"Minimum input gap",100,1500,250," ms",function() return S.cooldownMs end,function(v) S.cooldownMs=v;cancel() end)
+ label("Trigger time is the animation track's TimePosition, NOT network ping compensation or a universal perfect-block window. The facing arc and hold duration are configurable filters, not official JJS constants.",76)
+ local idBox=make("TextBox",box,{Size=UDim2.new(1,0,0,44),BackgroundColor3=T.p2,Text="",PlaceholderText="Tested attack animation ID",ClearTextOnFocus=false,TextColor3=T.txt,Font=Enum.Font.Code,TextSize=12,LayoutOrder=nextOrder(box)+2});corner(idBox,6)
+ toggle(box,"I tested that this attack is blockable",function() return S.confirmed end,function(v) S.confirmed=v end)
+ local profileBox=make("TextBox",box,{Size=UDim2.new(1,0,0,120),BackgroundColor3=T.p2,Text="[]",ClearTextOnFocus=false,MultiLine=true,TextWrapped=true,TextColor3=T.txt,Font=Enum.Font.Code,TextSize=11,LayoutOrder=nextOrder(box)+2});corner(profileBox,6)
+ local function export()
+  local values={};for id,r in pairs(S.rules) do table.insert(values,{id=id,at=r.at,blockable=true}) end
+  table.sort(values,function(a,b) return a.id<b.id end)
+  return Http:JSONEncode(values)
+ end
+ local function decode(text)
+  if typeof(text)~="string" or #text>64000 then return nil,"Profile JSON too large." end
+  local ok,data=pcall(function() return Http:JSONDecode(text) end)
+  if not ok or typeof(data)~="table" or #data>128 then return nil,"Expected an array of at most 128 profiles." end
+  local rules={};local count=0
+  for k,r in pairs(data) do
+   if typeof(k)~="number" or k%1~=0 or k<1 or k>#data or typeof(r)~="table" then return nil,"Expected a dense JSON array." end
+   if typeof(r.id)~="string" then return nil,"Animation IDs must be JSON strings to avoid numeric precision loss." end
+   local id=r.id;local at=r.at
+   if not id:match("^%d+$") or #id>20 or #id<4 or typeof(at)~="number" or at~=at or at<0 or at>3 or r.blockable~=true or rules[id] then return nil,"Invalid/duplicate ID, trigger time, or blockable flag." end
+   rules[id]={at=at,blockable=true};count+=1
+  end
+  if count~=#data then return nil,"Sparse profile array rejected." end
+  return rules,count
+ end
+ local function apply(text)
+  local rules,count=decode(text);if not rules then say(count);return end
+  cancel();S.rules=rules
+  if count==0 then S.enabled=false;if repaint then repaint() end end
+  profileBox.Text=export();say("Loaded "..count.." profiles. Test timing before enabling.")
+ end
+ button("Copy last observed ID into editor",function() if S.observed then idBox.Text=S.observed.id;S.confirmed=false;say("Observed ID copied. Verify it is a blockable attack before adding.") else say("Turn Capture on and observe a nearby attack first.") end end)
+ button("Add / replace tested profile",function()
+  local id=idBox.Text:match("%d+")
+  if not id or #id<4 or #id>20 then say("Enter a valid numeric animation ID.");return end
+  if not S.confirmed then say("Confirm that you tested this attack as blockable.");return end
+  local count=0;for _ in pairs(S.rules) do count+=1 end;if count>=128 and not S.rules[id] then say("Profile limit reached.");return end
+  cancel();S.rules[id]={at=S.timeMs/1000,blockable=true};profileBox.Text=export();say("Saved "..id.." at animation time "..S.timeMs.." ms.")
+ end)
+ button("Remove entered ID",function() local id=idBox.Text:match("%d+");if id then cancel();S.rules[id]=nil;if not hasRules() then S.enabled=false;if repaint then repaint() end end;profileBox.Text=export();say("Profile removed.") end end)
+ button("Import profile JSON",function() apply(profileBox.Text) end)
+ button("Export / copy profiles",function() profileBox.Text=export();if typeof(setclipboard)=="function" then pcall(setclipboard,profileBox.Text) end;say("Profiles exported to the text box; copied if supported.") end)
+ button("Save profiles locally",function() if typeof(writefile)~="function" then say("File saving unavailable.");return end;local ok,e=pcall(writefile,"JJSHub_auto_parry_profiles.json",export());say(ok and "Saved local profiles." or tostring(e)) end)
+ button("Load profiles locally",function() if typeof(readfile)~="function" then say("File reading unavailable.");return end;local ok,text=pcall(readfile,"JJSHub_auto_parry_profiles.json");if ok then apply(text) else say("No readable profile file.") end end)
+ label("Import is JSON data only, never executable Lua. Asset IDs identify animations, not confirmed damage windows. Current JJS patches, attack variants and latency can change results. Delta/Xeno input permissions are not guaranteed.",84)
+ local function shutdown()
+  if not S.alive then return end
+  S.enabled=false;S.capture=false;S.alive=false;cancel()
+  for _,entry in pairs(hooks) do entry.connection:Disconnect() end;hooks={}
+  for _,c in ipairs(connections) do c:Disconnect() end;connections={}
+  if __JJSBoot.autoParryShutdown==shutdown then __JJSBoot.autoParryShutdown=nil end
+ end
+ __JJSBoot.autoParryShutdown=shutdown
+ listen(Players.PlayerRemoving,function(p) if hooks[p] then hooks[p].connection:Disconnect();hooks[p]=nil end;jobs[p]=nil;cancel() end)
+ listen(LP.CharacterRemoving,function() cancel("Character removed - pending parries cancelled.") end)
+ listen(UIS.WindowFocusReleased,function() S.focused=false;cancel("Window unfocused - input released.") end)
+ listen(UIS.WindowFocused,function() S.focused=true end)
+ listen(UIS.TextBoxFocused,function() cancel("Typing - pending parries cancelled.") end)
+ listen(main:GetPropertyChangedSignal("Visible"),function() if main.Visible then cancel("Menu open - Auto Parry paused.") end end)
+ listen(gui.Destroying,shutdown);listen(unload.Activated,shutdown)
+ listen(RS.Heartbeat,function(dt)
+  if not S.alive then return end
+  if S.owned and (not S.enabled or not S.focused or not scriptsActive() or not rig() or UIS:GetFocusedTextBox()) then cancel() end
+  S.poll+=dt;if S.poll<.5 then return end;S.poll=0
+  if S.enabled or S.capture then for _,p in ipairs(Players:GetPlayers()) do attach(p) end end
+ end)
 end)
 
 local function destroyBackdrop()
@@ -2307,6 +2589,7 @@ local cleanupDone=false
 local function cleanup()
  if cleanupDone then return end
  cleanupDone=true;clapState.generation+=1;clapState.pending=false
+ if __JJSBoot.autoParryShutdown then pcall(__JJSBoot.autoParryShutdown) end
  if fxShutdown then pcall(fxShutdown) end
  running=false; scriptsPaused=false
  enabled=false; todoEnabled=false; perfectClapEnabled=false; tripleJumpEnabled=false; pullEnabled=false; lockOn=false; chainEnabled=false; release()
@@ -3264,5 +3547,5 @@ end
 end)
 if not okFX then warn("Popup section failed (rest of script still loaded): "..tostring(errFX)) end
 end,function(e) return debug.traceback(tostring(e),2) end)
-if not __okMain then warn("JJS HUB v2.6: "..tostring(__errMain)) end
+if not __okMain then warn("JJS HUB v2.7: "..tostring(__errMain)) end
 __JJSBoot:finish(__okMain)
