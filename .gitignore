@@ -219,7 +219,22 @@ connect(discordBtn.Activated,openDiscordInvite)
 local reopen=make("TextButton",gui,{Name="JJSReopenButton",AnchorPoint=Vector2.new(1,1),Position=UDim2.new(1,-18,1,-110),Size=UDim2.fromOffset(58,58),BackgroundColor3=T.acc,Text="JJS",TextColor3=Color3.fromRGB(25,12,6),Font=Enum.Font.GothamBold,TextSize=16,Visible=false,Active=true,ZIndex=100})
 corner(reopen,29)
 make("UIStroke",reopen,{Color=Color3.fromRGB(255,220,150),Thickness=2})
-connect(reopen.Activated,function() if hubUnlocked and main.Parent then main.Visible=true;reopen.Visible=false end end)
+-- Floating reopen button can be dragged anywhere on touch or desktop.
+local reopenDragging,reopenStart,reopenOrigin,reopenTouch,reopenMoved=false,nil,nil,nil,false
+connect(reopen.InputBegan,function(input)
+ if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then
+  reopenDragging=true;reopenMoved=false;reopenStart=input.Position;reopenOrigin=reopen.Position;reopenTouch=input
+ end
+end)
+connect(UIS.InputChanged,function(input)
+ if reopenDragging and (input.UserInputType==Enum.UserInputType.MouseMovement or input==reopenTouch) then
+  local delta=input.Position-reopenStart
+  if math.abs(delta.X)+math.abs(delta.Y)>6 then reopenMoved=true end
+  if reopenMoved then reopen.Position=UDim2.new(reopenOrigin.X.Scale,reopenOrigin.X.Offset+delta.X,reopenOrigin.Y.Scale,reopenOrigin.Y.Offset+delta.Y) end
+ end
+end)
+connect(UIS.InputEnded,function(input) if input==reopenTouch then reopenDragging=false;reopenTouch=nil end end)
+connect(reopen.Activated,function() if not reopenMoved and hubUnlocked and main.Parent then main.Visible=true;reopen.Visible=false end;reopenMoved=false end)
 -- ===== KEY PAGE (shown until valid key from Discord) =====
 local keyPage=nil
 if not hubUnlocked then
@@ -331,10 +346,12 @@ local function applyResponsiveLayout()
  mobileMode=compact
 
  if compact then
-  -- Near full-screen phone panel; keep a little breathing room around the edges.
-  main.Size=UDim2.fromOffset(math.max(300,viewport.X-12),math.max(320,viewport.Y-24))
+  -- Compact floating window on mobile (not edge-to-edge). UIScale keeps the
+  -- original layout proportions instead of stretching the desktop panel.
+  main.Size=UDim2.fromOffset(760,540)
   main.Position=UDim2.fromScale(.5,.5)
-  scale.Scale=1
+  scale.Scale=math.min(.78,(viewport.X-28)/760,(viewport.Y-48)/540)
+  scale.Scale=math.max(.38,scale.Scale)
   top.Size=UDim2.new(1,0,0,52)
   side.Position=UDim2.fromOffset(0,52)
   side.Size=UDim2.new(1,0,0,54)
@@ -2609,7 +2626,8 @@ end)
 --  B7 far hill + trees  B8 bats  B9 fog bands  B10 mid hill + tombstones
 --  B11 pumpkin patch  B12 torches  B13 falling ash  B14 front hill  B15 vignette
 ;__JJSBoot:run("Halloween background",function()
-
+ -- Skip the full-screen decorative backdrop on touch devices.
+ if UIS.TouchEnabled then return end
  local TweenS=game:GetService("TweenService")
  local old=PG:FindFirstChild("JJSHalloweenBackdrop");if old then old:Destroy() end
  local bg=Instance.new("ScreenGui");bg.Name="JJSHalloweenBackdrop";bg.ResetOnSpawn=false;bg.IgnoreGuiInset=true;bg.DisplayOrder=998;bg.Parent=PG
