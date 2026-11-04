@@ -312,54 +312,93 @@ for i,cat in ipairs(cats) do
  connect(b.Activated,function()
   title.Text=name; desc.Text=""
   for key,page in pairs(pages) do page.Visible=key==name end
-  for key,btn in pairs(buttons) do btn.BackgroundTransparency=key==name and 0 or 1; btn.BackgroundColor3=T.p2; btn.TextColor3=key==name and T.acc or T.dim; btn.Font=key==name and Enum.Font.GothamBold or Enum.Font.GothamMedium end
+  for key,btn in pairs(buttons) do
+   btn.BackgroundTransparency=mobileMode and 0 or (key==name and 0 or 1)
+   btn.BackgroundColor3=mobileMode and (key==name and T.acc or T.p2) or T.p2
+   btn.TextColor3=mobileMode and (key==name and Color3.fromRGB(28,14,6) or T.dim) or (key==name and T.acc or T.dim)
+   btn.Font=key==name and Enum.Font.GothamBold or Enum.Font.GothamMedium
+  end
  end)
 end
 
--- Responsive navigation: phones use a horizontal, swipeable category strip.
+-- Responsive navigation: polished phone layout with large touch targets.
 local sideLayout=side:FindFirstChildOfClass("UIListLayout")
+local mobileMode=false
 local function applyResponsiveLayout()
  local camera=workspace.CurrentCamera
  local viewport=camera and camera.ViewportSize or Vector2.new(760,540)
  local compact=UIS.TouchEnabled or viewport.X<700
+ mobileMode=compact
+
  if compact then
-  main.Size=UDim2.fromOffset(math.max(280,math.min(760,viewport.X-16)),math.max(300,math.min(700,viewport.Y-32)))
+  -- Near full-screen phone panel; keep a little breathing room around the edges.
+  main.Size=UDim2.fromOffset(math.max(300,viewport.X-12),math.max(320,viewport.Y-24))
   main.Position=UDim2.fromScale(.5,.5)
   scale.Scale=1
-  side.Position=UDim2.fromOffset(0,44)
-  side.Size=UDim2.new(1,0,0,46)
+  top.Size=UDim2.new(1,0,0,52)
+  side.Position=UDim2.fromOffset(0,52)
+  side.Size=UDim2.new(1,0,0,54)
   side.ScrollingDirection=Enum.ScrollingDirection.X
   side.AutomaticCanvasSize=Enum.AutomaticSize.X
   side.CanvasSize=UDim2.new()
   side.ScrollBarThickness=0
-  if sideLayout then sideLayout.FillDirection=Enum.FillDirection.Horizontal;sideLayout.Padding=UDim.new(0,6) end
-  for _,nav in pairs(buttons) do nav.Size=UDim2.fromOffset(92,36);nav.TextSize=12 end
+  side.BackgroundColor3=T.panel
+  if sideLayout then sideLayout.FillDirection=Enum.FillDirection.Horizontal;sideLayout.Padding=UDim.new(0,8) end
+  local sidePad=side:FindFirstChildOfClass("UIPadding")
+  if sidePad then
+   sidePad.PaddingTop=UDim.new(0,6);sidePad.PaddingBottom=UDim.new(0,6)
+   sidePad.PaddingLeft=UDim.new(0,10);sidePad.PaddingRight=UDim.new(0,10)
+  end
+  for name,nav in pairs(buttons) do
+   nav.Size=UDim2.fromOffset(112,42);nav.TextSize=13
+   nav.TextWrapped=false
+   nav.BackgroundTransparency=0
+   nav.BackgroundColor3=pages[name] and pages[name].Visible and T.acc or T.p2
+   nav.TextColor3=pages[name] and pages[name].Visible and Color3.fromRGB(28,14,6) or T.dim
+   nav.Font=pages[name] and pages[name].Visible and Enum.Font.GothamBold or Enum.Font.GothamMedium
+  end
   for _,child in ipairs(side:GetChildren()) do if child:IsA("TextLabel") then child.Visible=false end end
-  content.Position=UDim2.fromOffset(0,90)
-  content.Size=UDim2.new(1,0,1,-90)
-  title.TextSize=16;title.Position=UDim2.fromOffset(12,8)
+  content.Position=UDim2.fromOffset(0,106)
+  content.Size=UDim2.new(1,0,1,-106)
+  title.TextSize=16;title.Position=UDim2.fromOffset(14,9)
   discordBtn.Visible=false
-  badge.Position=UDim2.new(0,150,.5,-9)
-  close.Size=UDim2.fromOffset(34,32);close.Position=UDim2.new(1,-42,.5,-16)
+  badge.Size=UDim2.fromOffset(42,20);badge.Position=UDim2.new(0,142,.5,-10)
+  close.Size=UDim2.fromOffset(40,40);close.Position=UDim2.new(1,-46,.5,-20)
+  close.TextSize=20
  else
   main.Size=UDim2.fromOffset(760,540)
   main.Position=UDim2.fromScale(.5,.5)
   scale.Scale=math.min(1,(viewport.X-24)/760,(viewport.Y-40)/540)
+  top.Size=UDim2.new(1,0,0,44)
   side.Position=UDim2.fromOffset(0,44)
   side.Size=UDim2.new(0,150,1,-44)
   side.ScrollingDirection=Enum.ScrollingDirection.Y
   side.AutomaticCanvasSize=Enum.AutomaticSize.Y
   side.ScrollBarThickness=2
+  side.BackgroundColor3=T.panel
   if sideLayout then sideLayout.FillDirection=Enum.FillDirection.Vertical;sideLayout.Padding=UDim.new(0,4) end
-  for _,nav in pairs(buttons) do nav.Size=UDim2.new(1,0,0,32);nav.TextSize=13 end
+  local sidePad=side:FindFirstChildOfClass("UIPadding")
+  if sidePad then
+   sidePad.PaddingTop=UDim.new(0,10);sidePad.PaddingBottom=UDim.new(0,0)
+   sidePad.PaddingLeft=UDim.new(0,8);sidePad.PaddingRight=UDim.new(0,8)
+  end
+  for name,nav in pairs(buttons) do
+   nav.Size=UDim2.new(1,0,0,32);nav.TextSize=13
+   nav.BackgroundTransparency=pages[name] and pages[name].Visible and 0 or 1
+   nav.BackgroundColor3=T.p2
+   nav.TextColor3=pages[name] and pages[name].Visible and T.acc or T.dim
+   nav.Font=pages[name] and pages[name].Visible and Enum.Font.GothamBold or Enum.Font.GothamMedium
+  end
   for _,child in ipairs(side:GetChildren()) do if child:IsA("TextLabel") then child.Visible=true end end
   content.Position=UDim2.fromOffset(150,44)
   content.Size=UDim2.new(1,-150,1,-44)
   title.TextSize=18;title.Position=UDim2.fromOffset(16,10)
   discordBtn.Visible=true
-  badge.Position=UDim2.new(0,220,.5,-9)
+  badge.Size=UDim2.fromOffset(48,18);badge.Position=UDim2.new(0,220,.5,-9)
   close.Size=UDim2.fromOffset(28,28);close.Position=UDim2.new(1,-36,.5,-14)
+  close.TextSize=16
  end
+
  if keyPage and keyPage.Parent then
   keyPage.AnchorPoint=Vector2.new(.5,.5);keyPage.Position=UDim2.fromScale(.5,.5)
   local keyScale=keyPage:FindFirstChildOfClass("UIScale")
@@ -378,11 +417,11 @@ local function card(p,name,sub)
  make("Frame",c,{Size=UDim2.new(1,0,0,1),BackgroundColor3=T.stroke,BorderSizePixel=0,LayoutOrder=2}); return c
 end
 local function toggle(p,name,get,set)
- local r=make("TextButton",p,{Size=UDim2.new(1,0,0,40),BackgroundTransparency=1,Text="",LayoutOrder=nextOrder(p)+2})
- make("TextLabel",r,{Size=UDim2.new(1,-50,1,0),BackgroundTransparency=1,Text=name,TextColor3=T.txt,Font=Enum.Font.Gotham,TextSize=12,TextXAlignment=Enum.TextXAlignment.Left})
- local track=make("Frame",r,{Size=UDim2.fromOffset(36,18),Position=UDim2.new(1,-36,.5,-9),BackgroundColor3=T.p2,BorderSizePixel=0}); corner(track,9)
- local knob=make("Frame",track,{Size=UDim2.fromOffset(14,14),Position=UDim2.new(0,2,.5,-7),BackgroundColor3=Color3.new(1,1,1),BorderSizePixel=0}); corner(knob,7)
- local function paint() track.BackgroundColor3=get() and T.acc or Color3.fromRGB(45,45,55); knob.Position=get() and UDim2.new(1,-16,.5,-7) or UDim2.new(0,2,.5,-7) end
+ local r=make("TextButton",p,{Size=UDim2.new(1,0,0,UIS.TouchEnabled and 48 or 40),BackgroundTransparency=1,Text="",LayoutOrder=nextOrder(p)+2})
+ make("TextLabel",r,{Size=UDim2.new(1,-50,1,0),BackgroundTransparency=1,Text=name,TextColor3=T.txt,Font=Enum.Font.Gotham,TextSize=UIS.TouchEnabled and 14 or 12,TextXAlignment=Enum.TextXAlignment.Left})
+ local track=make("Frame",r,{Size=UIS.TouchEnabled and UDim2.fromOffset(44,24) or UDim2.fromOffset(36,18),Position=UIS.TouchEnabled and UDim2.new(1,-44,.5,-12) or UDim2.new(1,-36,.5,-9),BackgroundColor3=T.p2,BorderSizePixel=0}); corner(track,9)
+ local knob=make("Frame",track,{Size=UIS.TouchEnabled and UDim2.fromOffset(18,18) or UDim2.fromOffset(14,14),Position=UDim2.new(0,2,.5,UIS.TouchEnabled and -9 or -7),BackgroundColor3=Color3.new(1,1,1),BorderSizePixel=0}); corner(knob,7)
+ local function paint() track.BackgroundColor3=get() and T.acc or Color3.fromRGB(45,45,55); knob.Position=get() and UDim2.new(1,UIS.TouchEnabled and -20 or -16,.5,UIS.TouchEnabled and -9 or -7) or UDim2.new(0,2,.5,UIS.TouchEnabled and -9 or -7) end
  connect(r.Activated,function() set(not get()); paint() end); paint()
  return paint
 end
