@@ -1,4 +1,4 @@
--- JJS HUB v2.19: sequential initialization + device badge + inspected additions.
+-- JJS HUB v2.20: sequential initialization + device badge + inspected additions.
 local __JJSBoot=(function()
  local b={done=0,failed=0,total=36,ready=false,screen=nil,label=nil,fill=nil}
  local Players=game:GetService("Players")
@@ -31,7 +31,7 @@ local __JJSBoot=(function()
   local scale=Instance.new("UIScale");local camera=workspace.CurrentCamera;local viewport=camera and camera.ViewportSize or Vector2.new(760,540);scale.Scale=math.min(1,(viewport.X-30)/500,(viewport.Y-30)/250);scale.Parent=panel
   local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,12);corner.Parent=panel
   local stroke=Instance.new("UIStroke");stroke.Color=Color3.fromRGB(255,122,26);stroke.Thickness=1;stroke.Parent=panel
-  local title=Instance.new("TextLabel");title.Size=UDim2.fromOffset(450,34);title.Position=UDim2.fromOffset(24,22);title.BackgroundTransparency=1;title.Font=Enum.Font.GothamBold;title.TextSize=22;title.TextColor3=Color3.fromRGB(255,242,224);title.TextXAlignment=Enum.TextXAlignment.Left;title.Text="JJS HUB  /  v2.19";title.Parent=panel
+  local title=Instance.new("TextLabel");title.Size=UDim2.fromOffset(450,34);title.Position=UDim2.fromOffset(24,22);title.BackgroundTransparency=1;title.Font=Enum.Font.GothamBold;title.TextSize=22;title.TextColor3=Color3.fromRGB(255,242,224);title.TextXAlignment=Enum.TextXAlignment.Left;title.Text="JJS HUB  /  v2.20";title.Parent=panel
   b:icon(panel,UDim2.fromOffset(26,72),34)
   local device=Instance.new("TextLabel");device.Size=UDim2.fromOffset(390,32);device.Position=UDim2.fromOffset(74,74);device.BackgroundTransparency=1;device.Font=Enum.Font.GothamBold;device.TextSize=mobile and 18 or 15;device.TextColor3=b.color;device.TextXAlignment=Enum.TextXAlignment.Left;device.Text="Detected "..b.device.."  -  preparing modules";device.Parent=panel
   local label=Instance.new("TextLabel");label.Size=UDim2.fromOffset(450,48);label.Position=UDim2.fromOffset(24,120);label.BackgroundTransparency=1;label.Font=Enum.Font.Gotham;label.TextSize=mobile and 18 or 12;label.TextColor3=Color3.fromRGB(200,160,180);label.TextXAlignment=Enum.TextXAlignment.Left;label.TextWrapped=true;label.Text="Device checked. Initializing interface...";label.Parent=panel;b.label=label
@@ -44,7 +44,7 @@ local __JJSBoot=(function()
   if self.label and self.label.Parent then self.label.Text=string.format("Loading %d / %d: %s",self.done+1,self.total,name) end
   task.wait(.025)
   local ok,err=xpcall(fn,function(e) return tostring(e) end)
-  if not ok then self.failed+=1;warn("JJS v2.19 ["..name.."]: "..tostring(err)) end
+  if not ok then self.failed+=1;warn("JJS v2.20 ["..name.."]: "..tostring(err)) end
   self.done+=1
   if self.fill and self.fill.Parent then self.fill.Size=UDim2.fromScale(math.clamp(self.done/self.total,0,1),1) end
   task.wait(.025)
@@ -252,7 +252,7 @@ local scale=make("UIScale",main,{Scale=1})
 local top=make("Frame",main,{Size=UDim2.new(1,0,0,44),BackgroundColor3=T.panel,BorderSizePixel=0,Active=true})
 corner(top,12)
 make("Frame",top,{Size=UDim2.new(1,0,0,14),Position=UDim2.new(0,0,1,-14),BackgroundColor3=T.panel,BorderSizePixel=0})
-make("TextLabel",top,{Size=UDim2.fromOffset(225,44),Position=UDim2.fromOffset(16,0),BackgroundTransparency=1,Text="JJS HUB v2.19",TextColor3=T.txt,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left})
+make("TextLabel",top,{Size=UDim2.fromOffset(225,44),Position=UDim2.fromOffset(16,0),BackgroundTransparency=1,Text="JJS HUB v2.20",TextColor3=T.txt,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left})
 local badge=make("TextLabel",top,{Size=UDim2.fromOffset(48,18),Position=UDim2.new(0,220,.5,-9),BackgroundColor3=T.p2,Text="325",TextColor3=T.acc,Font=Enum.Font.GothamBold,TextSize=11}); corner(badge,4)
 local DISCORD_URL="https://discord.gg/RrQQh6B4nP"
 local discordBtn=make("TextButton",top,{Size=UDim2.fromOffset(86,28),Position=UDim2.new(1,-130,.5,-14),BackgroundColor3=Color3.fromRGB(88,101,242),Text="Discord",TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=12}); corner(discordBtn,6)
@@ -2047,185 +2047,234 @@ end)
 
 ;__JJSBoot:run("Loading Settings and Device Details",function()
  -- JJS25: Loading Settings and Device Details
- local box=card(pages.Settings,"v2.19 Device and Loading","")
+ local box=card(pages.Settings,"v2.20 Device and Loading","")
  make("TextLabel",box,{Size=UDim2.new(1,0,0,125),BackgroundTransparency=1,Text="Detected: "..__JJSBoot.device.."\nBlue monitor: PC. Yellow phone: touch-first/mobile. Hybrid touch + keyboard is classed PC. This is input-capability detection, not exact hardware identification.\nModules initialize sequentially with short yields. New optional features start OFF. Original key gate remains. Optional additions are included; further modules remain pending review.",TextWrapped=true,TextColor3=T.mut,Font=Enum.Font.Gotham,TextSize=11,LayoutOrder=3})
 
 end)
 
 
-;__JJSBoot:run("Auto Parry - punch block",function()
- local S={alive=true,on=false,focus=true,range=12,ids={},count=0,scan=nil,hooks={},links={},jobs={},gen=0,owner=nil,backend=nil,last=-math.huge,poll=0}
- local models={}
- for _,o in ipairs(workspace:GetDescendants()) do if o:IsA("Humanoid") and o.Parent:IsA("Model") then models[o.Parent]=o end end
- connect(workspace.DescendantAdded,function(o) if o:IsA("Humanoid") and o.Parent:IsA("Model") then models[o.Parent]=o end end)
- connect(workspace.DescendantRemoving,function(o) if o:IsA("Humanoid") then models[o.Parent]=nil end end)
+;__JJSBoot:run("Auto Parry - state-aware animation guard",function()
+ local S={alive=true,on=false,focused=true,range=12,hold=.30,maxAge=.40,gap=.12,last=-math.huge,backend=nil,owner=nil,gen=0,poll=0,scan=nil,links={},hooks={},models={},jobs={},ids={},manual={},meta={},metaCount=0,logs={},logKeys={},dirty=true,logClock=0}
+ local autoFace,allowHit,pauseMoving,pauseAction=false,false,true,false
+ local lookAhead=0;local blockAttributes={};local filter,sort="Matches","Category"
+ local rank={M1=1,Punch=2,Verified=3,Hit=4,Swing=5,Unknown=6,Excluded=7}
  local assets=game:GetService("ReplicatedStorage");local box=card(pages.Combat,"Auto Parry","")
- local info=make("TextLabel",box,{Size=UDim2.new(1,0,0,76),BackgroundTransparency=1,Text="Logs player / NPC animation playback and sorts M1, Punch, Hit, Swing and reactions. M1/Punch or verified IDs attempt F within range; Hit/Swing require opt-in. Numeric-only tracks need verified IDs. Success is unconfirmed.",TextWrapped=true,TextColor3=T.mut,Font=Enum.Font.Gotham,TextSize=12,LayoutOrder=3});ord[box]=3
- local status=make("TextLabel",box,{Size=UDim2.new(1,0,0,48),BackgroundTransparency=1,Text="OFF",TextWrapped=true,TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=12,LayoutOrder=4});ord[box]=4
- local repaint=nil
- local function say(v) if status.Parent then status.Text=v end end
- local function listen(sig,fn) local c=sig:Connect(fn);table.insert(S.links,c);return c end
- local function norm(v) return tostring(v or ""):lower():gsub("[^%w]","") end
- local ranks={M1=1,Punch=2,Verified=3,Hit=4,Swing=5,Unknown=6,Excluded=7}
- local metadata={};local metadataCount=0;local manual={};local allowAmbiguous=false
- local logs={};local logKeys={};local maxLogs=200;local logDirty=true;local logClock=0;local view="Matches";local sortMode="Category"
- local excluded={"hitreaction","hitreact","hitstun","hurt","flinch","stagger","ragdoll","knockback","knockdown","gethit","takinghit","receivedhit","damage","damaged","blocking","block","parry","counter","emote","dance","idle","walking","running","stunned","downslam","downsmash","uppercut","uptilt"}
- local function category(a,label,withMetadata)
-  local id=a and a.AnimationId:match("%d+")
-  local names={a and a.Name or "",label or ""};local node=a and a.Parent;local depth=0
-  while node and depth<5 do
-   -- A character/player name is not an attack label.
-   if node:IsA("Model") or node:IsA("Humanoid") or node:IsA("Animator") then break end
-   table.insert(names,node.Name);node=node.Parent;depth+=1
-  end
-  local normalized={};local grouped=false
-  for _,name in ipairs(names) do
-   local n=norm(name);table.insert(normalized,n)
-   for _,bad in ipairs(excluded) do if n:find(bad,1,true) then return "Excluded",id end end
-   if n=="stun" or n=="walk" or n=="run" then return "Excluded",id end
-  end
-  if id and manual[id] then return "Verified",id end
+ local function listen(signal,fn) local c=connect(signal,fn);table.insert(S.links,c);return c end
+ local function label(text,h) return make("TextLabel",box,{Size=UDim2.new(1,0,0,h or 50),BackgroundTransparency=1,Text=text,TextWrapped=true,TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,LayoutOrder=nextOrder(box)+2}) end
+ label("Player / NPC animation guard. F input is an attempt, not confirmed parry. Optional horizontal facing; no guessed remotes, projectile IDs or automatic retaliation.",64)
+ local status=label("OFF",44)
+ local function say(text) if S.alive and status.Parent then status.Text=text end end
+ local function norm(text) return tostring(text or ""):lower():gsub("[^%w]","") end
+ local excluded={"hitreaction","hitreact","hitstun","gethit","takinghit","receivedhit","hurt","flinch","stagger","stun","ragdoll","knockback","knockdown","damage","block","parry","counter","emote","dance","idle","walking","running","downslam","downsmash","uppercut","uptilt"}
+ local function classify(animation,trackName,useMeta)
+  if not animation then return "Unknown",nil end
+  local id=animation.AnimationId:match("%d+");local names={animation.Name,trackName or ""};local parent=animation.Parent;local depth=0
+  while parent and depth<5 and not parent:IsA("Model") and not parent:IsA("Humanoid") and not parent:IsA("Animator") do table.insert(names,parent.Name);parent=parent.Parent;depth+=1 end
+  local normalized={}
+  for _,text in ipairs(names) do local n=norm(text);table.insert(normalized,n);for _,bad in ipairs(excluded) do if n:find(bad,1,true) then return "Excluded",id end end;if n=="walk" or n=="run" then return "Excluded",id end end
+  if id and S.manual[id] then return "Verified",id end
   for _,n in ipairs(normalized) do if n:find("m1",1,true) then return "M1",id end end
   for _,n in ipairs(normalized) do if n:find("punch",1,true) then return "Punch",id end end
   for _,n in ipairs(normalized) do if n:find("hit",1,true) then return "Hit",id end end
   for _,n in ipairs(normalized) do if n:find("swing",1,true) then return "Swing",id end end
-  if withMetadata and id and metadata[id] then return metadata[id].category,id end
+  if useMeta and id and S.meta[id] then return S.meta[id],id end
   return "Unknown",id
  end
- local function accepted(cat) return cat=="M1" or cat=="Punch" or cat=="Verified" or allowAmbiguous and (cat=="Hit" or cat=="Swing") end
- local function discover(a,label)
-  if not a or not a:IsA("Animation") then return end
-  local cat,id=category(a,label,false);if not id then return end
-  local existing=metadata[id]
-  if existing and cat~="Unknown" and ranks[cat]<ranks[existing.category] or not existing and metadataCount<2048 then if not existing then metadataCount+=1 end;metadata[id]={category=cat,name=a.Name} end
-  if not accepted(cat) and existing and cat=="Unknown" then cat=existing.category end
-  if cat=="Excluded" then return end
-  if accepted(cat) then
-   if not S.ids[id] and S.count<512 then S.ids[id]=true;S.count+=1 end
-   if S.ids[id] then return id end
-  end
+ local function accepted(category) return category=="M1" or category=="Punch" or category=="Verified" or allowHit and (category=="Hit" or category=="Swing") end
+ local function discover(animation)
+  if not animation:IsA("Animation") then return end
+  local category,id=classify(animation,nil,false);if not id or category=="Unknown" then return end
+  local previous=S.meta[id]
+  if previous then
+   if category=="Excluded" or previous~="Excluded" and rank[category]<rank[previous] then S.meta[id]=category end
+  elseif S.metaCount<2048 then S.meta[id]=category;S.metaCount+=1 end
  end
- local function logTrack(player,character,track)
-  local a=track.Animation;if not a then return end
-  local cat,id=category(a,track.Name,true);if not id then return end
-  local source=player and ("Player: "..player.Name) or ("NPC: "..character.Name)
-  local sourceKey=player and tostring(player.UserId) or character:GetFullName()
-  local key=sourceKey..":"..id..":"..cat
-  local entry=logKeys[key]
+ local function log(character,track)
+  local category,id=classify(track.Animation,track.Name,true);if not id then return category end
+  local player=Players:GetPlayerFromCharacter(character);local source=player and ("Player: "..player.Name) or ("NPC: "..character.Name)
+  local key=(player and tostring(player.UserId) or character:GetFullName())..":"..id..":"..category
+  local entry=S.logKeys[key]
   if not entry then
-   if #logs>=maxLogs then local removed=table.remove(logs,1);logKeys[removed.key]=nil end
-   entry={key=key,id=id,name=a.Name,track=track.Name,source=source,category=cat,count=0,last=0};logKeys[key]=entry;table.insert(logs,entry)
+   if #S.logs>=200 then local removed=table.remove(S.logs,1);S.logKeys[removed.key]=nil end
+   entry={key=key,id=id,name=track.Animation.Name,track=track.Name,source=source,category=category,count=0,last=0};S.logKeys[key]=entry;table.insert(S.logs,entry)
   end
-  entry.count+=1;entry.last=os.clock();logDirty=true
+  entry.count+=1;entry.last=os.clock();S.dirty=true;return category
  end
- local function rig() local c=LP.Character;local h=c and c:FindFirstChildOfClass("Humanoid");local r=c and c:FindFirstChild("HumanoidRootPart");if h and r and h.Health>0 then return c,h,r end end
- local function keyUp() if S.backend=="vim" and okVIM and VIM then pcall(function() VIM:SendKeyEvent(false,Enum.KeyCode.F,false,game) end) elseif S.backend=="key" and typeof(keyrelease)=="function" then pcall(keyrelease,0x46) end;S.backend=nil end
- local function release(owner) if owner and S.owner~=owner then return end;keyUp();if S.owner then busy=false;S.owner=nil end;pcall(function() if gui.Parent then gui:SetAttribute("AutoParryHolding",false) end end) end
- local function cancel(v) S.gen+=1;S.jobs={};release();if v then say(v) end end
- local function ready()
-  if not S.alive or not S.on or not S.focus or not running or not scriptsActive() or UIS:GetFocusedTextBox() or busy or manualSequenceBusy or todoBusy or tripleJumpBusy then return false end
-  if gui:GetAttribute("FlingSequenceActive") or gui:GetAttribute("BlackflashChainV2Active") or gui:GetAttribute("BlackflashChainV3Active") then return false end
-  local _,h=rig();if not h then return false end;local st=h:GetState();return st~=Enum.HumanoidStateType.Dead and st~=Enum.HumanoidStateType.Ragdoll and st~=Enum.HumanoidStateType.FallingDown
+ local function rig() local c=LP.Character;local h=c and c:FindFirstChildOfClass("Humanoid");local r=c and c:FindFirstChild("HumanoidRootPart");if h and r and h.Health>0 and not r.Anchored then return c,h,r end end
+ local function release()
+  local owner=S.owner;S.owner=nil
+  if S.backend=="vim" and okVIM and VIM then pcall(function() VIM:SendKeyEvent(false,Enum.KeyCode.F,false,game) end)
+  elseif S.backend=="key" and type(keyrelease)=="function" then pcall(keyrelease,0x46) end
+  S.backend=nil
+  if owner then if owner.humanoid.Parent then owner.humanoid.AutoRotate=owner.autoRotate end;busy=false end
+  if gui.Parent then gui:SetAttribute("AutoParryHolding",false) end
  end
- local function near(p,c,limit,guard)
-  if c==LP.Character or not c or not c:IsDescendantOf(workspace) then return false end
-  if p and (p==LP or p.Parent~=Players or p.Character~=c or not LP.Neutral and not p.Neutral and LP.Team~=nil and LP.Team==p.Team) then return false end
-  local own,_,r=rig();local h=c and c:FindFirstChildOfClass("Humanoid");local e=c and c:FindFirstChild("HumanoidRootPart");if not own or not h or not e or h.Health<=0 then return false end
-  local d=e.Position-r.Position;local f=Vector3.new(d.X,0,d.Z);if d.Magnitude>limit or f.Magnitude<.05 then return false end
-  if guard then local a=Vector3.new(r.CFrame.LookVector.X,0,r.CFrame.LookVector.Z);local b=Vector3.new(e.CFrame.LookVector.X,0,e.CFrame.LookVector.Z);if a.Magnitude<.05 or b.Magnitude<.05 or a.Unit:Dot(f.Unit)<0 or b.Unit:Dot(-f.Unit)<.1 then return false end
-   local q=RaycastParams.new();q.FilterType=Enum.RaycastFilterType.Exclude;q.FilterDescendantsInstances={own};q.RespectCanCollide=true;local start=r.Position+Vector3.new(0,1,0);local target=e.Position+Vector3.new(0,1,0);local hit=workspace:Raycast(start,target-start,q);if hit and not hit.Instance:IsDescendantOf(c) then return false end end
-  return true,d.Magnitude
- end
+ local function cancel(message) S.gen+=1;S.jobs={};release();if message then say(message) end end
  local function press()
-  local reason="No supported F input."
-  if okVIM and VIM then S.backend="vim";local ok,e=pcall(function() VIM:SendKeyEvent(true,Enum.KeyCode.F,false,game) end);if ok then return true end;keyUp();reason=tostring(e) end
-  if typeof(keypress)=="function" and typeof(keyrelease)=="function" then S.backend="key";local ok,e=pcall(keypress,0x46);if ok then return true end;keyUp();reason=tostring(e) end;return false,reason
+  if okVIM and VIM then S.backend="vim";local ok=pcall(function() VIM:SendKeyEvent(true,Enum.KeyCode.F,false,game) end);if ok then return true end;release() end
+  if type(keypress)=="function" and type(keyrelease)=="function" then S.backend="key";local ok=pcall(keypress,0x46);if ok then return true end;release() end
+  return false
  end
- local function react(c)
-  if not ready() or c.gen~=S.gen or c.own~=LP.Character or not c.track.IsPlaying or c.track.Speed<=0 or c.track.TimePosition>.4 or not near(c.player,c.character,S.range,true) or os.clock()-S.last<.08 then return false end
-  local held=false;pcall(function() held=UIS:IsKeyDown(Enum.KeyCode.F) end);if held then return false end
-  local now=os.clock();local o={gen=S.gen,own=LP.Character,player=c.player,character=c.character,track=c.track,start=now,finish=now+.5,minHold=now+.3};S.owner=o;busy=true;gui:SetAttribute("AutoParryHolding",true)
-  local ok,e=press();if not ok then release(o);S.on=false;S.gen+=1;if repaint then repaint() end;say(tostring(e));return true end
-  S.last=now;say("Punch detected -> F block attempted. Success unconfirmed.")
-  task.spawn(function() while S.alive and S.owner==o and S.on and S.focus and o.gen==S.gen and LP.Character==o.own and running and scriptsActive() and rig() and not UIS:GetFocusedTextBox() and near(o.player,o.character,S.range,true) and os.clock()<o.finish do if not o.track.IsPlaying and os.clock()>=o.minHold then break end;RS.Heartbeat:Wait() end;release(o) end);return true
- end
- local function observe(p,c,t,existing)
-  if S.alive and S.on and c~=LP.Character then logTrack(p,c,t) end
-  if not S.alive or not S.on or not t.IsPlaying or existing and t.TimePosition>.2 or t.TimePosition>.4 or not near(p,c,math.min(50,S.range+8),false) then return end
-  local cat=category(t.Animation,t.Name,true);if not accepted(cat) then return end
-  local id=discover(t.Animation,t.Name);if not id or not S.ids[id] then return end
-  if S.owner and near(p,c,S.range,true) then S.owner.track=t;S.owner.finish=math.min(S.owner.start+.9,os.clock()+.5);S.jobs[t]=nil;return end
-  local count=0;for _ in pairs(S.jobs) do count+=1 end;if count>=32 then return end
-  local v={player=p,character=c,track=t,gen=S.gen,own=LP.Character,expires=os.clock()+.7};S.jobs[t]=v;if react(v) then S.jobs[t]=nil end
- end
- local function attach(c)
-  if c==LP.Character then return end
-  local p=Players:GetPlayerFromCharacter(c);local h=models[c];local a=h and h.Parent==c and h:FindFirstChildOfClass("Animator");local old=S.hooks[c]
-  if old and old.animator==a then return end
-  if old then old.link:Disconnect();S.hooks[c]=nil end
-  if a then S.hooks[c]={character=c,animator=a,link=a.AnimationPlayed:Connect(function(t) observe(p,c,t,false) end)};local ok,list=pcall(function() return a:GetPlayingAnimationTracks() end);if ok then for _,t in ipairs(list) do observe(p,c,t,true) end end end
- end
- repaint=toggle(box,"Auto Parry",function() return S.on end,function(v) cancel();S.on=v;if v then S.scan={{object=assets,index=0}};local ps=LP:FindFirstChild("PlayerScripts");if ps then table.insert(S.scan,{object=ps,index=0}) end;for p,e in pairs(S.hooks) do e.link:Disconnect();S.hooks[p]=nil end;for model,h in pairs(models) do if h.Parent==model and model:IsDescendantOf(workspace) then attach(model) else models[model]=nil;local old=S.hooks[model];if old then old.link:Disconnect();S.hooks[model]=nil end end end;say("ON - close menu to react. Discovering punch assets.") else S.scan=nil;say("OFF - block released.") end end)
- moduleSlider(box,"Block distance",2,30,12," studs",function() return S.range end,function(v) S.range=v;cancel() end)
- local ids=make("TextBox",box,{Size=UDim2.new(1,0,0,38),Text="",PlaceholderText="Verified player / NPC M1 animation IDs",ClearTextOnFocus=false,BackgroundColor3=T.p2,TextColor3=T.txt,Font=Enum.Font.Code,TextSize=11,LayoutOrder=nextOrder(box)+2})
- listen(ids.FocusLost,function() manual={};for id in ids.Text:gmatch("%d+") do manual[id]=true;if not S.ids[id] and S.count<512 then S.ids[id]=true;S.count+=1 end end;say("Verified IDs updated. Excluded reactions remain excluded.") end)
-
-
- local logHeader=make("TextLabel",box,{Size=UDim2.new(1,0,0,52),BackgroundTransparency=1,Text="Animation log: played tracks only; player and NPC sources. M1/Punch match by exposed labels, not verified damage. Hit/Swing are ambiguous.",TextWrapped=true,TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,LayoutOrder=nextOrder(box)+2})
- toggle(box,"Allow ambiguous Hit / Swing matches",function() return allowAmbiguous end,function(v) allowAmbiguous=v;cancel();logDirty=true end)
- local function logButton(text,fn)
-  local b=make("TextButton",box,{Size=UDim2.new(1,0,0,32),BackgroundColor3=T.p2,Text=text,TextColor3=T.txt,Font=Enum.Font.Gotham,TextSize=11,LayoutOrder=nextOrder(box)+2});corner(b,5);listen(b.Activated,fn);return b
- end
- local filterButton,sortButton
- filterButton=logButton("Log filter: Matches",function() view=view=="Matches" and "All" or view=="All" and "Excluded" or "Matches";filterButton.Text="Log filter: "..view;logDirty=true end)
- sortButton=logButton("Log sort: Category",function() sortMode=sortMode=="Category" and "Recent" or sortMode=="Recent" and "Count" or "Category";sortButton.Text="Log sort: "..sortMode;logDirty=true end)
- local logView=make("TextLabel",box,{Size=UDim2.new(1,0,0,300),BackgroundTransparency=1,Text="Enable Auto Parry to collect played animations. Open this panel after nearby players / NPCs attack.",TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,TextColor3=T.dim,Font=Enum.Font.Code,TextSize=10,LayoutOrder=nextOrder(box)+2})
- local exportBox=make("TextBox",box,{Size=UDim2.new(1,0,0,100),Text="",PlaceholderText="Exported animation log JSON appears here",ClearTextOnFocus=false,MultiLine=true,TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,BackgroundColor3=T.p2,TextColor3=T.txt,Font=Enum.Font.Code,TextSize=10,LayoutOrder=nextOrder(box)+2})
- local function sortedLog()
-  local list={}
-  for _,entry in ipairs(logs) do
-   local match=entry.category~="Unknown" and entry.category~="Excluded"
-   if view=="All" or view=="Matches" and match or view=="Excluded" and entry.category=="Excluded" then table.insert(list,entry) end
+ local function stateOK(holding)
+  if not S.alive or not S.on or not S.focused or not scriptsActive() or UIS:GetFocusedTextBox() then return false,"Paused / typing / unfocused" end
+  if not holding and busy or manualSequenceBusy or todoBusy or tripleJumpBusy then return false,"Another macro owns input" end
+  for _,name in ipairs({"FlingSequenceActive","BlackflashChainV2Active","BlackflashChainV3Active","ComboStudioBusy"}) do if gui:GetAttribute(name) then return false,"Conflicting module: "..name end end
+  local c,h,r=rig();if not c then return false,"No live unanchored character" end
+  local state=h:GetState()
+  if h.PlatformStand or state==Enum.HumanoidStateType.Dead or state==Enum.HumanoidStateType.Ragdoll or state==Enum.HumanoidStateType.FallingDown or state==Enum.HumanoidStateType.Physics or state==Enum.HumanoidStateType.Seated then return false,"Humanoid state prevents guard" end
+  if pauseMoving and h.MoveDirection.Magnitude>.1 then return false,"Manual movement" end
+  for _,name in ipairs(blockAttributes) do
+   for _,object in ipairs({c,h,LP}) do local v=object:GetAttribute(name);if v==true or type(v)=="number" and v>0 then return false,"Configured state: "..name end end
   end
-  table.sort(list,function(a,b)
-   if sortMode=="Category" and ranks[a.category]~=ranks[b.category] then return ranks[a.category]<ranks[b.category] end
-   if sortMode=="Count" and a.count~=b.count then return a.count>b.count end
-   if a.last~=b.last then return a.last>b.last end
-   return a.key<b.key
-  end)
-  return list
+  if pauseAction and not holding then
+   local animator=h:FindFirstChildOfClass("Animator")
+   if animator then for _,t in ipairs(animator:GetPlayingAnimationTracks()) do if t.IsPlaying and t.WeightCurrent>.05 and t.Priority.Value>=Enum.AnimationPriority.Action.Value then return false,"Own Action-priority animation" end end end
+  end
+  return true,nil,c,h,r
  end
- logButton("Export full animation log to JSON",function()
-  local out={schema="JJSAnimationLog",version=1,entries={}}
-  for _,e in ipairs(logs) do table.insert(out.entries,{id=e.id,name=e.name,track=e.track,source=e.source,category=e.category,count=e.count,lastObservedSeconds=e.last}) end
-  exportBox.Text=game:GetService("HttpService"):JSONEncode(out)
+ local function threat(character,requireFront)
+  local own,h,root=rig();local enemyH=character and character:FindFirstChildOfClass("Humanoid");local enemy=character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso"))
+  if not root or character==own or not character:IsDescendantOf(workspace) or not enemyH or enemyH.Health<=0 or not enemy or not enemy:IsA("BasePart") then return false end
+  local player=Players:GetPlayerFromCharacter(character)
+  if player and not LP.Neutral and not player.Neutral and LP.Team~=nil and LP.Team==player.Team then return false end
+  local actual=enemy.Position-root.Position
+  if actual.Magnitude>S.range+2 or math.abs(actual.Y)>6 then return false end
+  -- Short optional constant-velocity melee lookahead, not projectile or hit-frame verification.
+  local delta=actual+(enemy.AssemblyLinearVelocity-root.AssemblyLinearVelocity)*(lookAhead/1000)
+  if delta.Magnitude>S.range then return false end
+  local flat=Vector3.new(actual.X,0,actual.Z);if flat.Magnitude<.05 then return false end
+  local enemyLook=Vector3.new(enemy.CFrame.LookVector.X,0,enemy.CFrame.LookVector.Z)
+  if enemyLook.Magnitude<.05 or enemyLook.Unit:Dot(-flat.Unit)<.1 then return false end
+  if requireFront then local forward=Vector3.new(root.CFrame.LookVector.X,0,root.CFrame.LookVector.Z);if forward.Magnitude<.05 or forward.Unit:Dot(flat.Unit)<0 then return false end end
+  local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude;params.FilterDescendantsInstances={own};params.RespectCanCollide=true
+  local hit=workspace:Raycast(root.Position+Vector3.new(0,1,0),actual,params)
+  if hit and not hit.Instance:IsDescendantOf(character) then return false end
+  return true,actual.Magnitude,root,enemy,h
+ end
+ local function face(root,enemy)
+  local target=Vector3.new(enemy.Position.X,root.Position.Y,enemy.Position.Z)
+  if (target-root.Position).Magnitude>.05 then root.CFrame=CFrame.lookAt(root.Position,target) end
+ end
+ local function observe(character,track,existing)
+  if not S.on or not S.alive or character==LP.Character then return end
+  local category=log(character,track)
+  if not accepted(category) or not track.IsPlaying or track.Speed<=0 or track.TimePosition>S.maxAge then return end
+  if existing and track.TimePosition>.15 then return end
+  local n=0;for _ in pairs(S.jobs) do n+=1 end;if n>=64 then return end
+  S.jobs[track]={character=character,track=track,generation=S.gen,expires=os.clock()+.45}
+ end
+ local function attach(character,humanoid)
+  local animator=humanoid.Parent==character and humanoid:FindFirstChildOfClass("Animator");local old=S.hooks[character]
+  if old and old.animator==animator then return end
+  if old then old.connection:Disconnect();S.hooks[character]=nil end
+  if animator and character~=LP.Character then
+   S.hooks[character]={animator=animator,connection=animator.AnimationPlayed:Connect(function(t) observe(character,t,false) end)}
+   if S.on then for _,t in ipairs(animator:GetPlayingAnimationTracks()) do observe(character,t,true) end end
+  end
+ end
+ local repaint=toggle(box,"Auto Parry",function() return S.on end,function(v)
+  cancel();S.on=v;S.dirty=true
+  if v then S.scan={{object=assets,index=0}};for c,h in pairs(S.models) do if c:IsDescendantOf(workspace) then attach(c,h);local a=h:FindFirstChildOfClass("Animator");if a then for _,t in ipairs(a:GetPlayingAnimationTracks()) do observe(c,t,true) end end end end;say("ON: close menu to guard. Logging player / NPC tracks.") else S.scan=nil;say("OFF: F released; logs retained.") end
  end)
- logButton("Clear animation log",function() logs={};logKeys={};exportBox.Text="";logDirty=true end)
+ toggle(box,"Face incoming attacker",function() return autoFace end,function(v) autoFace=v;cancel() end)
+ toggle(box,"Allow ambiguous Hit / Swing matches",function() return allowHit end,function(v) allowHit=v;cancel();S.dirty=true end)
+ toggle(box,"Pause when manually moving",function() return pauseMoving end,function(v) pauseMoving=v;cancel() end)
+ toggle(box,"Pause during own Action animations",function() return pauseAction end,function(v) pauseAction=v;cancel() end)
+ moduleSlider(box,"Block distance",2,30,12," studs",function() return S.range end,function(v) S.range=v;cancel() end)
+ moduleSlider(box,"Block hold",100,600,300," ms",function() return math.floor(S.hold*1000+.5) end,function(v) S.hold=v/1000;cancel() end)
+ moduleSlider(box,"Melee motion lookahead",0,100,0," ms",function() return lookAhead end,function(v) lookAhead=v;cancel() end)
+ label("Lookahead defaults to 0; it is only a constant-velocity proximity estimate, not a verified impact window. Manual movement pauses facing by default. Action-priority filtering is optional and heuristic.",72)
+ local function input(placeholder,height)
+  return make("TextBox",box,{Size=UDim2.new(1,0,0,height or 38),Text="",PlaceholderText=placeholder,ClearTextOnFocus=false,BackgroundColor3=T.p2,TextColor3=T.txt,Font=Enum.Font.Code,TextSize=11,LayoutOrder=nextOrder(box)+2})
+ end
+ local ids=input("Verified M1 animation IDs (comma separated)")
+ listen(ids.FocusLost,function() S.manual={};for id in ids.Text:gmatch("%d+") do S.manual[id]=true end;cancel("Verified IDs updated; reaction labels stay excluded.");S.dirty=true end)
+ local attributes=input("Optional VERIFIED blocking attributes, comma separated")
+ listen(attributes.FocusLost,function() blockAttributes={};for name in attributes.Text:gmatch("[%w_]+") do if #blockAttributes<16 then table.insert(blockAttributes,name) end end;cancel("Configured attributes: "..#blockAttributes..". No guessed JJS state names.") end)
+ label("Configured attributes block attempts only when true or a positive number on your character, Humanoid or Player. Leave blank unless their meaning is verified. Hidden game-specific locks/cooldowns are not inferred.",72)
+ local function button(text,fn) local b=make("TextButton",box,{Size=UDim2.new(1,0,0,32),Text=text,BackgroundColor3=T.p2,TextColor3=T.txt,Font=Enum.Font.Gotham,TextSize=11,LayoutOrder=nextOrder(box)+2});corner(b,5);listen(b.Activated,fn);return b end
+ local filterButton,sortButton
+ filterButton=button("Log filter: Matches",function() filter=filter=="Matches" and "All" or filter=="All" and "Excluded" or "Matches";filterButton.Text="Log filter: "..filter;S.dirty=true end)
+ sortButton=button("Log sort: Category",function() sort=sort=="Category" and "Recent" or sort=="Recent" and "Count" or "Category";sortButton.Text="Log sort: "..sort;S.dirty=true end)
+ local logView=label("Enable Auto Parry to record observed animation playback.",300);logView.Font=Enum.Font.Code;logView.TextSize=10
+ local exportBox=input("Exported log JSON",100);exportBox.MultiLine=true;exportBox.TextWrapped=true;exportBox.TextYAlignment=Enum.TextYAlignment.Top;exportBox.TextXAlignment=Enum.TextXAlignment.Left
+ button("Export full animation log JSON",function() local data={schema="JJSAnimationLog",version=1,entries={}};for _,e in ipairs(S.logs) do table.insert(data.entries,{id=e.id,name=e.name,track=e.track,source=e.source,category=e.category,count=e.count,lastObservedSeconds=e.last}) end;exportBox.Text=game:GetService("HttpService"):JSONEncode(data) end)
+ button("Clear animation log",function() S.logs={};S.logKeys={};exportBox.Text="";S.dirty=true end)
+ label("Remote-based block, projectile classification and confirmed auto-counter remain unavailable: no verified JJS handlers or confirmation signals. F delivery and successful defense are different outcomes.",72)
+ local function register(o) if o:IsA("Humanoid") and o.Parent and o.Parent:IsA("Model") then S.models[o.Parent]=o end end
+ for _,o in ipairs(workspace:GetDescendants()) do register(o) end
+ listen(workspace.DescendantAdded,register)
+ listen(workspace.DescendantRemoving,function(o) if o:IsA("Humanoid") then local c=o.Parent;S.models[c]=nil;local hook=S.hooks[c];if hook then hook.connection:Disconnect();S.hooks[c]=nil end end end)
+ listen(assets.DescendantAdded,function(o) if S.on and o:IsA("Animation") then discover(o) end end)
+ listen(UIS.WindowFocusReleased,function() S.focused=false;cancel("Focus lost") end);listen(UIS.WindowFocused,function() S.focused=true end)
+ listen(UIS.TextBoxFocused,function() cancel("Typing") end)
+ listen(LP.CharacterRemoving,function() cancel("Respawn") end)
+ listen(main:GetPropertyChangedSignal("Visible"),function() if main.Visible then cancel("Menu open; reactions paused, logging continues") end end)
  listen(RS.Heartbeat,function(dt)
-  if not S.alive then return end;logClock+=dt;if logClock<.3 or not logDirty then return end;logClock=0;logDirty=false
-  local entries=sortedLog();local rows={string.format("%s | %s | %d shown / %d stored (max %d)",view,sortMode,#entries,#logs,maxLogs)}
-  for i=1,math.min(10,#entries) do local e=entries[i];local attack=accepted(e.category) and "eligible" or "log only";table.insert(rows,string.format("[%s / %s] %s x%d\n%s | %s",e.category,attack,e.id,e.count,e.source,e.name:sub(1,45))) end
-  if #entries==0 then table.insert(rows,S.on and "No matching played animations yet." or "Auto Parry OFF. Logs are retained; enable to collect.") end
-  if #entries>10 then table.insert(rows,"First 10 shown; export JSON for the full log.") end
-  logView.Text=table.concat(rows,"\n")
+  if not S.alive then return end
+  S.poll+=dt
+  if S.poll>=.25 then
+   S.poll=0
+   for c,h in pairs(S.models) do if c:IsDescendantOf(workspace) and h.Parent==c then attach(c,h) else S.models[c]=nil;local old=S.hooks[c];if old then old.connection:Disconnect();S.hooks[c]=nil end end end
+  end
+  if S.on and S.scan then
+   local began=os.clock();local n=0
+   while #S.scan>0 and n<100 and os.clock()-began<.002 do
+    n+=1;local node=S.scan[#S.scan]
+    if node.index==0 then discover(node.object);local ok,list=pcall(node.object.GetChildren,node.object);node.children=ok and list or {};node.index=1 end
+    local child=node.children[node.index]
+    if child then node.index+=1;if child.Parent then table.insert(S.scan,{object=child,index=0}) end else table.remove(S.scan) end
+   end
+   if #S.scan==0 then S.scan=nil end
+  end
+  if S.owner then
+   local o=S.owner;local good=stateOK(true);local valid,_,root,enemy=threat(o.character,not autoFace)
+   if not good or not valid or os.clock()>=o.finish or not o.track.IsPlaying and os.clock()>=o.minimum then release()
+   elseif autoFace then face(root,enemy) end
+  elseif S.on and os.clock()-S.last>=S.gap then
+   local good=stateOK(false)
+   local best,bestDistance=nil,math.huge
+   for track,job in pairs(S.jobs) do
+    local category=classify(track.Animation,track.Name,true)
+    if job.generation~=S.gen or not accepted(category) or not track.IsPlaying or track.TimePosition>S.maxAge or os.clock()>job.expires or not job.character:IsDescendantOf(workspace) then S.jobs[track]=nil
+    elseif good then local valid,d=threat(job.character,not autoFace);if valid and d<bestDistance then best=job;bestDistance=d end end
+   end
+   if best then
+    local _,h,root=rig();local valid,_,_,enemy=threat(best.character,not autoFace)
+    if valid and not UIS:IsKeyDown(Enum.KeyCode.F) then
+     local priorRotation=root.CFrame.Rotation
+     if autoFace then face(root,enemy) end
+     if press() then
+      S.owner={character=best.character,track=best.track,humanoid=h,autoRotate=h.AutoRotate,finish=os.clock()+S.hold,minimum=os.clock()+math.min(.12,S.hold)}
+      if autoFace then h.AutoRotate=false;face(root,enemy) end
+      busy=true;gui:SetAttribute("AutoParryHolding",true);S.last=os.clock();S.jobs[best.track]=nil;say("Incoming animation -> F attempted; success unconfirmed.")
+     else if autoFace and root.Parent then root.CFrame=CFrame.new(root.Position)*priorRotation end;S.on=false;cancel("No supported F input backend");if repaint then repaint() end end
+    end
+   end
+  end
+  S.logClock+=dt
+  if S.logClock>=.3 and S.dirty then
+   S.logClock=0;S.dirty=false;local rows={};local list={}
+   for _,e in ipairs(S.logs) do local match=e.category~="Unknown" and e.category~="Excluded";if filter=="All" or filter=="Matches" and match or filter=="Excluded" and e.category=="Excluded" then table.insert(list,e) end end
+   table.sort(list,function(a,b) if sort=="Category" and rank[a.category]~=rank[b.category] then return rank[a.category]<rank[b.category] end;if sort=="Count" and a.count~=b.count then return a.count>b.count end;if a.last~=b.last then return a.last>b.last end;return a.key<b.key end)
+   table.insert(rows,string.format("%s | %s | %d matching / %d stored (max 200)",filter,sort,#list,#S.logs))
+   for i=1,math.min(10,#list) do local e=list[i];table.insert(rows,string.format("[%s] %s x%d\n%s | %s",e.category,e.id,e.count,e.source,e.name:sub(1,45))) end
+   if #list==0 then table.insert(rows,"No matching played animations yet.") end
+   if #list>10 then table.insert(rows,"First 10 shown; export for full log.") end
+   logView.Text=table.concat(rows,"\n")
+  end
  end)
-
- __JJSBoot.stopParry=function() S.on=false;cancel("Stopped.");if repaint then repaint() end end
- local function shutdown() if not S.alive then return end;S.alive=false;S.on=false;cancel();S.scan=nil;for _,e in pairs(S.hooks) do e.link:Disconnect() end;for _,c in ipairs(S.links) do c:Disconnect() end;S.hooks={};S.links={};if __JJSBoot.autoParryShutdown==shutdown then __JJSBoot.autoParryShutdown=nil;__JJSBoot.stopParry=nil end end
- __JJSBoot.autoParryShutdown=shutdown
- listen(gui.Destroying,shutdown);listen(unload.Activated,shutdown);listen(LP.CharacterRemoving,function() cancel("Respawn - block released.") end)
- listen(UIS.WindowFocusReleased,function() S.focus=false;cancel("Unfocused - block released.") end);listen(UIS.WindowFocused,function() S.focus=true end)
- listen(UIS.TextBoxFocused,function() cancel("Typing - paused.") end);listen(main:GetPropertyChangedSignal("Visible"),function() if main.Visible then cancel("Menu open - paused.") end end)
- listen(Players.PlayerRemoving,function(p) if S.hooks[p] then S.hooks[p].link:Disconnect();S.hooks[p]=nil end;for t,c in pairs(S.jobs) do if c.player==p then S.jobs[t]=nil end end end)
- listen(assets.DescendantAdded,function(o) if S.alive and S.on and o:IsA("Animation") then task.delay(.1,function() if S.alive and o.Parent then discover(o,nil) end end) end end)
- listen(RS.Heartbeat,function(dt)
-  if not S.alive then return end;if S.owner and (not S.on or not S.focus or not running or not scriptsActive() or not rig() or UIS:GetFocusedTextBox()) then cancel() end;if not S.on then return end
-  if S.scan then local count=0;local start=os.clock();while #S.scan>0 and count<100 and os.clock()-start<.002 do count+=1;local n=S.scan[#S.scan];if n.index==0 then if n.object:IsA("Animation") then discover(n.object,nil) end;local ok,list=pcall(function() return n.object:GetChildren() end);n.children=ok and list or {};n.index=1 end;local child=n.children[n.index];if child then n.index+=1;if child.Parent then table.insert(S.scan,{object=child,index=0}) end else table.remove(S.scan) end end;if #S.scan==0 then S.scan=nil;say(S.count>0 and ("Ready: "..S.count.." punch assets.") or "No identifiable punch assets; opaque tracks cannot be recognized.") end end
-  S.poll+=dt;if S.poll>=.35 then S.poll=0;for model,h in pairs(models) do if h.Parent==model and model:IsDescendantOf(workspace) then attach(model) else models[model]=nil;local old=S.hooks[model];if old then old.link:Disconnect();S.hooks[model]=nil end end end end
-  local best=nil;local d=math.huge;for t,c in pairs(S.jobs) do if c.gen~=S.gen or c.own~=LP.Character or not c.character:IsDescendantOf(workspace) or (c.player and c.player.Character~=c.character) or not t.IsPlaying or t.TimePosition>.5 or os.clock()>c.expires then S.jobs[t]=nil elseif ready() then local valid,dist=near(c.player,c.character,S.range,true);if valid and dist<d then best=c;d=dist end end end;if best and react(best) then S.jobs[best.track]=nil end
- end)
+ local function stop() S.on=false;cancel("Stopped");if repaint then repaint() end end
+ local function shutdown()
+  if not S.alive then return end;stop();S.alive=false
+  for _,hook in pairs(S.hooks) do hook.connection:Disconnect() end
+  for _,connection in ipairs(S.links) do connection:Disconnect() end
+  S.hooks={};S.links={};S.models={};S.scan=nil
+  if __JJSBoot.autoParryShutdown==shutdown then __JJSBoot.autoParryShutdown=nil;__JJSBoot.stopParry=nil end
+ end
+ __JJSBoot.stopParry=stop;__JJSBoot.autoParryShutdown=shutdown
+ listen(gui.Destroying,shutdown);listen(unload.Activated,shutdown)
 end)
-
 
 ;__JJSBoot:run("Mobile action dock",function()
  local alive=true;local drag=nil;local elapsed=0;local raw=__JJSBoot.rawMake
@@ -3238,8 +3287,8 @@ end
 end)
 if not okFX then warn("Popup section failed (rest of script still loaded): "..tostring(errFX)) end
 
--- v2.19: explicit local-only additions; no guessed remotes or server bypasses.
-;__JJSBoot:run("v2.19 movement and recovery",function()
+-- v2.20: explicit local-only additions; no guessed remotes or server bypasses.
+;__JJSBoot:run("v2.20 movement and recovery",function()
  local alive=true
  local fly,expand,antiStun,antiRagdoll=false,false,false,false
  local speed,boxSize=50,8
@@ -3568,5 +3617,5 @@ end)
 
 applyResponsiveLayout()
 end,function(e) return debug.traceback(tostring(e),2) end)
-if not __okMain then warn("JJS HUB v2.19: "..tostring(__errMain)) end
+if not __okMain then warn("JJS HUB v2.20: "..tostring(__errMain)) end
 __JJSBoot:finish(__okMain)
