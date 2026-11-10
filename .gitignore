@@ -1663,204 +1663,44 @@ end)
 
 
 
-;__JJSBoot:run("Fling Kill All",function()
- -- Simple fling: teleport near target, spin hard, move very fast into them.
- local active=false
- local closed=false
- local generation=0
- local skipTeam=true
- local range=300
- local spinPower=250
- local moveSpeed=220
- local durationMs=500
- local ownedBusy=false
- local snapshot=nil
- local panel=card(pages.Combat,"Fling Kill All","")
- local feedback=make("TextLabel",panel,{Size=UDim2.new(1,0,0,40),BackgroundTransparency=1,Text="Ready — spin + high speed into target",TextColor3=T.dim,TextWrapped=true,TextSize=11,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=3})
- ord[panel]=3
- toggle(panel,"Skip teammates",function() return skipTeam end,function(v) if not active then skipTeam=v end end)
- moduleSlider(panel,"Maximum range",25,1000,range," studs",function() return range end,function(v) if not active then range=v end end)
- moduleSlider(panel,"Spin power",50,500,spinPower,"",function() return spinPower end,function(v) if not active then spinPower=v end end)
- moduleSlider(panel,"Move speed",80,400,moveSpeed,"",function() return moveSpeed end,function(v) if not active then moveSpeed=v end end)
- moduleSlider(panel,"Fling duration",150,1200,durationMs," ms",function() return durationMs end,function(v) if not active then durationMs=v end end)
- local function makeButton(text,color)
-  local b=make("TextButton",panel,{Size=UDim2.new(1,0,0,30),BackgroundColor3=color or T.p2,Text=text,TextColor3=T.txt,Font=Enum.Font.GothamBold,TextSize=12,LayoutOrder=nextOrder(panel)+2})
-  corner(b,6)
-  return b
- end
- local testButton=makeButton("Fling nearest")
- local allButton=makeButton("Fling Kill All - one pass")
- local stopButton=makeButton("Stop (End)",T.warn)
- local function report(text)
-  if feedback.Parent and not closed then feedback.Text=text end
- end
- local function living(player)
-  local c=player.Character
+
+;__JJSBoot:run("Fling Spin",function()
+ -- Local only: spin your own character. No teleport, no target loop.
+ local alive=true
+ local spinning=false
+ local power=300
+ local panel=card(pages.Combat,"Fling (Spin Self)","")
+ toggle(panel,"Spin Fling",function() return spinning end,function(v)
+  spinning=v
+  if not v then
+   local c=LP.Character
+   local r=c and c:FindFirstChild("HumanoidRootPart")
+   if r then pcall(function() r.AssemblyAngularVelocity=Vector3.zero end) end
+  end
+ end)
+ moduleSlider(panel,"Spin power",50,800,power,"",function() return power end,function(v) power=v end)
+ make("TextLabel",panel,{
+  Size=UDim2.new(1,0,0,48),BackgroundTransparency=1,TextWrapped=true,
+  Text="Spins YOUR character only (high angular velocity). No teleport, no auto-target. Local physics; other players may not move.",
+  TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=nextOrder(panel)+2
+ })
+ connect(RS.Heartbeat,function()
+  if not alive or not spinning or not scriptsActive() then return end
+  if gui:GetAttribute("FlingSequenceActive") then return end
+  local c=LP.Character
   local h=c and c:FindFirstChildOfClass("Humanoid")
   local r=c and c:FindFirstChild("HumanoidRootPart")
-  if h and r and h.Health>0 then return c,h,r end
- end
- local function teammate(p)
-  return not LP.Neutral and not p.Neutral and LP.Team~=nil and LP.Team==p.Team
- end
- local function restoreCharacter()
-  local state=snapshot
-  snapshot=nil
-  if not state then return end
-  for part,value in pairs(state.collisions) do
-   if part.Parent then pcall(function() part.CanCollide=value end) end
-  end
-  if state.humanoid.Parent then
-   pcall(function()
-    state.humanoid.AutoRotate=state.autoRotate
-    state.humanoid.PlatformStand=state.platform
-   end)
-  end
-  if state.root.Parent and LP.Character==state.character then
-   pcall(function()
-    state.root.AssemblyLinearVelocity=Vector3.zero
-    state.root.AssemblyAngularVelocity=Vector3.zero
-   end)
-  end
- end
- local function releaseOwnership()
-  if ownedBusy then
-   ownedBusy=false
-   busy=false
-   manualSequenceBusy=false
-   if gui.Parent then gui:SetAttribute("FlingSequenceActive",false) end
-  end
- end
- local function stop(message)
-  generation+=1
-  restoreCharacter()
-  active=false
-  releaseOwnership()
-  report(message or "Stopped")
- end
- local function stillOk(id,player,state,targetRoot,targetHumanoid)
-  return running and gui.Parent and not closed and active and generation==id
-   and LP.Character==state.character and state.root.Parent and state.humanoid.Health>0
-   and player.Parent==Players and targetRoot.Parent and targetHumanoid.Health>0
- end
- local function attempt(player,id)
-  local character,humanoid,root=living(LP)
-  local target,targetHumanoid,targetRoot=living(player)
-  if not root or not targetRoot or player==LP or (skipTeam and teammate(player)) then
-   return false,0,"Skipped"
-  end
-  if (targetRoot.Position-root.Position).Magnitude>range then
-   return false,0,"Out of range"
-  end
-  local state={
-   character=character,humanoid=humanoid,root=root,
-   autoRotate=humanoid.AutoRotate,platform=humanoid.PlatformStand,collisions={}
-  }
-  snapshot=state
-  local displacement=0
-  local reason="Cancelled"
-  local ok,err=pcall(function()
-   humanoid.AutoRotate=false
-   humanoid.PlatformStand=true
-   -- only root collides so we slide into them hard
-   for _,part in ipairs(character:GetDescendants()) do
-    if part:IsA("BasePart") then
-     state.collisions[part]=part.CanCollide
-     part.CanCollide=(part==root)
-    end
-   end
-   report("Fling: "..player.DisplayName)
-   local origin=targetRoot.Position
-   local began=os.clock()
-   local dur=math.max(0.12,durationMs/1000)
-   while os.clock()-began<dur do
-    if not stillOk(id,player,state,targetRoot,targetHumanoid) then break end
-    local tpos=targetRoot.Position
-    local delta=tpos-root.Position
-    local dir
-    if delta.Magnitude>0.05 then
-     dir=delta.Unit
-    else
-     dir=Vector3.new(0,1,0)
-    end
-    -- sit on top of / into the target and spin + blast
-    root.CFrame=CFrame.new(tpos+dir*0.2)
-    root.AssemblyLinearVelocity=dir*moveSpeed+Vector3.new(0,math.max(40,moveSpeed*0.25),0)
-    root.AssemblyAngularVelocity=Vector3.new(spinPower,spinPower,spinPower)
-    RS.Heartbeat:Wait()
-   end
-   displacement=targetRoot.Parent and (targetRoot.Position-origin).Magnitude or 0
-   reason=string.format("Done — target moved %.1f studs",displacement)
-  end)
-  if snapshot==state then restoreCharacter() end
-  if not ok then return false,0,tostring(err) end
-  return true,displacement,reason
- end
- local function start(nearestOnly)
-  if active or closed or not running or not gui.Parent then return end
-  if busy or todoBusy or manualSequenceBusy or tripleJumpBusy then
-   report("Wait for the other macro to finish");return
-  end
-  if UIS:GetFocusedTextBox() then report("Finish typing first");return end
-  local _,_,root=living(LP)
-  if not root then report("Character unavailable");return end
-  local queue={}
-  for _,p in ipairs(Players:GetPlayers()) do
-   local _,_,other=living(p)
-   if p~=LP and other and (not skipTeam or not teammate(p)) then
-    local d=(other.Position-root.Position).Magnitude
-    if d<=range then table.insert(queue,{player=p,distance=d}) end
-   end
-  end
-  table.sort(queue,function(a,b) return a.distance<b.distance end)
-  if #queue==0 then report("No eligible targets in range");return end
-  if nearestOnly then queue={queue[1]} end
-  active=true;ownedBusy=true;busy=true;manualSequenceBusy=true
-  gui:SetAttribute("FlingSequenceActive",true)
-  generation+=1
-  local id=generation
-  main.Visible=false
-  task.spawn(function()
-   local done,moved=0,0
-   local ok,err=xpcall(function()
-    for _,item in ipairs(queue) do
-     if not running or closed or generation~=id or not active then break end
-     if not living(LP) then stop("Character unavailable");return end
-     local success,disp,reason=attempt(item.player,id)
-     if success then
-      done+=1
-      if disp>=5 then moved+=1 end
-     end
-     report(reason or "?")
-     if generation~=id then break end
-     task.wait(0.08)
-    end
-   end,function(e) return tostring(e) end)
-   if generation==id then
-    restoreCharacter();active=false;releaseOwnership()
-    report(ok and string.format("%d flings | %d moved >=5 studs",done,moved) or ("Stopped: "..tostring(err)))
-   end
-  end)
- end
- __JJSBoot.bind(panel,"Fling",function() return active end,function(v)
-  if v then start(true) else stop("Stopped from module switch") end
+  if not h or not r or h.Health<=0 then return end
+  r.AssemblyAngularVelocity=Vector3.new(power,power,power)
  end)
- table.insert(__JJSBoot.cancels,function() if active then stop("Stopped by touch control") end end)
- connect(testButton.Activated,function() start(true) end)
- connect(allButton.Activated,function() start(false) end)
- connect(stopButton.Activated,function() if active then stop("Stopped") end end)
- connect(UIS.InputBegan,function(input)
-  if input.KeyCode==Enum.KeyCode.End and active then stop("Stopped") end
- end)
- connect(LP.CharacterRemoving,function() if active then stop("Character removed") end end)
- connect(UIS.WindowFocusReleased,function() if active then stop("Focus lost") end end)
- local function shutdown()
-  if closed then return end
-  stop("Stopped")
-  closed=true
+ local function cleanup()
+  if not alive then return end
+  alive=false;spinning=false
+  local c=LP.Character
+  local r=c and c:FindFirstChild("HumanoidRootPart")
+  if r then pcall(function() r.AssemblyAngularVelocity=Vector3.zero end) end
  end
- connect(unload.Activated,shutdown)
- connect(gui.Destroying,shutdown)
+ connect(gui.Destroying,cleanup);connect(unload.Activated,cleanup)
 end)
 
 
@@ -2175,8 +2015,18 @@ end)
   local target=Vector3.new(enemy.Position.X,root.Position.Y,enemy.Position.Z)
   if (target-root.Position).Magnitude>.05 then root.CFrame=CFrame.lookAt(root.Position,target) end
  end
+ local function isLocalCharacter(character)
+  if not character then return true end
+  if character==LP.Character then return true end
+  if Players:GetPlayerFromCharacter(character)==LP then return true end
+  -- clones / viewmodels / tools under local character
+  if LP.Character and character:IsDescendantOf(LP.Character) then return true end
+  return false
+ end
  local function observe(character,track,existing)
-  if not S.on or not S.alive or character==LP.Character then return end
+  if not S.on or not S.alive then return end
+  if isLocalCharacter(character) then return end -- never register or react to your own punches
+  if not track or not track.Animation then return end
   local category=log(character,track)
   if not accepted(category) or not track.IsPlaying or track.Speed<=0 or track.TimePosition>S.maxAge then return end
   -- Existing tracks past early startup are usually already unsafe to react to (JJS M1 startup ~0.16-0.23s).
@@ -2185,10 +2035,16 @@ end)
   S.jobs[track]={character=character,track=track,generation=S.gen,expires=os.clock()+.55,seenAt=os.clock(),t0=track.TimePosition}
  end
  local function attach(character,humanoid)
-  local animator=humanoid.Parent==character and humanoid:FindFirstChildOfClass("Animator");local old=S.hooks[character]
+  if isLocalCharacter(character) then
+   local old=S.hooks[character]
+   if old then old.connection:Disconnect();S.hooks[character]=nil end
+   return
+  end
+  local animator=humanoid and (humanoid:FindFirstChildOfClass("Animator") or character:FindFirstChildOfClass("Animator"))
+  local old=S.hooks[character]
   if old and old.animator==animator then return end
   if old then old.connection:Disconnect();S.hooks[character]=nil end
-  if animator and character~=LP.Character then
+  if animator then
    S.hooks[character]={animator=animator,connection=animator.AnimationPlayed:Connect(function(t) observe(character,t,false) end)}
    if S.on then for _,t in ipairs(animator:GetPlayingAnimationTracks()) do observe(character,t,true) end end
   end
@@ -2222,10 +2078,23 @@ end)
  button("Export full animation log JSON",function() local data={schema="JJSAnimationLog",version=1,entries={}};for _,e in ipairs(S.logs) do table.insert(data.entries,{id=e.id,name=e.name,track=e.track,source=e.source,category=e.category,count=e.count,lastObservedSeconds=e.last}) end;exportBox.Text=game:GetService("HttpService"):JSONEncode(data) end)
  button("Clear animation log",function() S.logs={};S.logKeys={};exportBox.Text="";S.dirty=true end)
  label("Remote-based block, projectile classification and confirmed auto-counter remain unavailable: no verified JJS handlers or confirmation signals. F delivery and successful defense are different outcomes.",72)
- local function register(o) if o:IsA("Humanoid") and o.Parent and o.Parent:IsA("Model") then S.models[o.Parent]=o end end
+ local function register(o)
+  if o:IsA("Humanoid") and o.Parent and o.Parent:IsA("Model") and not isLocalCharacter(o.Parent) then
+   S.models[o.Parent]=o
+  end
+ end
  for _,o in ipairs(workspace:GetDescendants()) do register(o) end
  listen(workspace.DescendantAdded,register)
- listen(workspace.DescendantRemoving,function(o) if o:IsA("Humanoid") then local c=o.Parent;S.models[c]=nil;local hook=S.hooks[c];if hook then hook.connection:Disconnect();S.hooks[c]=nil end end end)
+ listen(workspace.DescendantRemoving,function(o)
+  if o:IsA("Humanoid") then
+   local c=o.Parent;S.models[c]=nil
+   local hook=S.hooks[c];if hook then hook.connection:Disconnect();S.hooks[c]=nil end
+  end
+ end)
+ listen(LP.CharacterAdded,function(char)
+  S.models[char]=nil
+  local hook=S.hooks[char];if hook then hook.connection:Disconnect();S.hooks[char]=nil end
+ end)
  listen(assets.DescendantAdded,function(o) if S.on and o:IsA("Animation") then discover(o) end end)
  listen(UIS.WindowFocusReleased,function() S.focused=false;cancel("Focus lost") end);listen(UIS.WindowFocused,function() S.focused=true end)
  listen(UIS.TextBoxFocused,function() cancel("Typing") end)
@@ -2258,7 +2127,7 @@ end)
    for track,job in pairs(S.jobs) do
     local category=classify(track.Animation,track.Name,true)
     if job.generation~=S.gen or not accepted(category) or not track.IsPlaying or track.TimePosition>S.maxAge or os.clock()>job.expires or not job.character:IsDescendantOf(workspace) then S.jobs[track]=nil
-    elseif good then
+    elseif good and not isLocalCharacter(job.character) then
      local valid,d=threat(job.character,not autoFace)
      -- Prefer earliest animation time (more of the ~0.2s startup left), then closest threat.
      local age=track.TimePosition
@@ -2301,7 +2170,268 @@ end)
   if __JJSBoot.autoParryShutdown==shutdown then __JJSBoot.autoParryShutdown=nil;__JJSBoot.stopParry=nil end
  end
  __JJSBoot.stopParry=stop;__JJSBoot.autoParryShutdown=shutdown
+ __JJSBoot.parryAPI={
+  getOn=function() return S.on end,
+  setOn=function(v) setAutoGuard(v) end,
+  isHolding=function() return busy end,
+  cancel=cancel,
+  state=S,
+ }
  listen(gui.Destroying,shutdown);listen(unload.Activated,shutdown)
+end)
+
+;__JJSBoot:run("Ultra Instinct",function()
+ -- JJS: F block ~180deg; M1 startup ~0.16-0.23s. Evasive = Q dash out of ragdoll (~1s i-frames).
+ -- Vessel/Yuji kits often use R as a recovery/cancel when an ability is interrupted or stuck.
+ local alive=true
+ local on=false
+ local autoEvade=true
+ local yujiCancel=true
+ local range=14
+ local hold=.28
+ local maxAge=.32
+ local gap=.02
+ local lastBlock=-math.huge
+ local lastEvade=-math.huge
+ local lastCancel=-math.huge
+ local evadeGap=.75
+ local cancelGap=.55
+ local hooks={}
+ local models={}
+ local holding=false
+ local holdGen=0
+
+ local panel=card(pages.Combat,"Ultra Instinct","")
+ local chrome=make("Frame",panel,{Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundColor3=Color3.fromRGB(20,24,40),BorderSizePixel=0,LayoutOrder=nextOrder(panel)+1})
+ corner(chrome,8)
+ local stroke=Instance.new("UIStroke");stroke.Color=Color3.fromRGB(120,170,255);stroke.Thickness=2;stroke.Parent=chrome
+ make("TextLabel",chrome,{Size=UDim2.new(1,-16,0,18),Position=UDim2.fromOffset(8,8),BackgroundTransparency=1,Text="ULTRA INSTINCT",TextColor3=Color3.fromRGB(150,200,255),Font=Enum.Font.GothamBold,TextSize=12,TextXAlignment=Enum.TextXAlignment.Left})
+ make("TextLabel",chrome,{Size=UDim2.new(1,-16,0,72),Position=UDim2.fromOffset(8,28),BackgroundTransparency=1,TextWrapped=true,Text="Overrides Auto Parry while on. Instant F on early enemy attack anims (JJS block). Auto-evade: Q on ragdoll/falling (evasive dash). Yuji/Vessel: R cancel if ability is interrupted or stuck. Local inputs only.",TextColor3=Color3.fromRGB(180,200,230),Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left})
+ make("Frame",chrome,{Size=UDim2.new(1,0,0,8),BackgroundTransparency=1})
+
+ local status=make("TextLabel",panel,{Size=UDim2.new(1,0,0,28),BackgroundTransparency=1,Text="Off",TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=nextOrder(panel)+2})
+ local function say(t) if status.Parent then status.Text=t;status.TextColor3=T.acc end end
+
+ local function cancelHold()
+  if holding then
+   holding=false;holdGen+=1
+   if okVIM and VIM then pcall(function() VIM:SendKeyEvent(false,Enum.KeyCode.F,false,game) end) end
+   pcall(function() gui:SetAttribute("UltraInstinctHolding",false) end)
+   pcall(function() gui:SetAttribute("AutoParryHolding",false) end)
+  end
+ end
+
+ local function setOn(v)
+  on=v
+  if v then
+   if __JJSBoot.parryAPI then pcall(function() __JJSBoot.parryAPI.setOn(false) end)
+   elseif __JJSBoot.stopParry then pcall(__JJSBoot.stopParry) end
+   say("ON — Auto Parry forced off")
+  else
+   cancelHold()
+   say("OFF")
+  end
+ end
+
+ toggle(panel,"Ultra Instinct",function() return on end,function(v) setOn(v) end)
+ toggle(panel,"Auto Evade (Q on ragdoll)",function() return autoEvade end,function(v) autoEvade=v end)
+ toggle(panel,"Yuji R-Cancel",function() return yujiCancel end,function(v) yujiCancel=v end)
+ moduleSlider(panel,"Block range",6,25,range," studs",function() return range end,function(v) range=v end)
+ moduleSlider(panel,"Hold F",100,600,math.floor(hold*1000+.5)," ms",function() return math.floor(hold*1000+.5) end,function(v) hold=v/1000 end)
+
+ local function okInput()
+  return okVIM and VIM and not UIS:GetFocusedTextBox() and scriptsActive() and not main.Visible
+   and not gui:GetAttribute("FlingSequenceActive")
+ end
+
+ local function pressKey(key,down)
+  if not okVIM or not VIM then return false end
+  return pcall(function() VIM:SendKeyEvent(down,key,false,game) end)
+ end
+
+ local function holdFInstant()
+  if not okInput() then return false end
+  if os.clock()-lastBlock<gap then return false end
+  lastBlock=os.clock()
+  holding=true;holdGen+=1
+  local gen=holdGen
+  pcall(function() gui:SetAttribute("UltraInstinctHolding",true) end)
+  pressKey(Enum.KeyCode.F,true)
+  say("Instant block (F)")
+  task.delay(hold,function()
+   if holdGen==gen then
+    pressKey(Enum.KeyCode.F,false)
+    holding=false
+    pcall(function() gui:SetAttribute("UltraInstinctHolding",false) end)
+   end
+  end)
+  return true
+ end
+
+ local function pressQ()
+  if not okInput() then return end
+  if os.clock()-lastEvade<evadeGap then return end
+  lastEvade=os.clock()
+  pressKey(Enum.KeyCode.Q,true)
+  task.delay(.05,function() pressKey(Enum.KeyCode.Q,false) end)
+  say("Auto evade (Q)")
+ end
+
+ local function pressR()
+  if not okInput() then return end
+  if os.clock()-lastCancel<cancelGap then return end
+  lastCancel=os.clock()
+  pressKey(Enum.KeyCode.R,true)
+  task.delay(.05,function() pressKey(Enum.KeyCode.R,false) end)
+  say("Yuji R-cancel")
+ end
+
+ local function isYuji()
+  local char=LP.Character
+  if not char then return false end
+  local bag={(char.Name or ""), tostring(char:GetAttribute("Character") or ""), tostring(char:GetAttribute("Kit") or ""), tostring(char:GetAttribute("Moveset") or "")}
+  for _,child in ipairs(char:GetChildren()) do table.insert(bag,child.Name) end
+  if LP:FindFirstChild("Backpack") then
+   for _,t in ipairs(LP.Backpack:GetChildren()) do table.insert(bag,t.Name) end
+  end
+  local blob=table.concat(bag," "):lower()
+  for _,k in ipairs({"yuji","itadori","vessel","divergent fist","divergentfist"}) do
+   if blob:find(k,1,true) then return true end
+  end
+  return false
+ end
+
+ local function norm(s) return tostring(s or ""):lower():gsub("[^%w]","") end
+ local attackKeys={"m1","punch","melee","attack","swing","combo","finisher","uppercut","downslam","kick","strike","skill","ability","special","move"}
+ local function isAttackTrack(track)
+  if not track or not track.IsPlaying or track.Speed<=0 then return false end
+  local names={track.Name}
+  if track.Animation then table.insert(names,track.Animation.Name);table.insert(names,tostring(track.Animation.AnimationId)) end
+  for _,n0 in ipairs(names) do
+   local n=norm(n0)
+   for _,k in ipairs(attackKeys) do if n:find(k,1,true) then return true end end
+  end
+  if __JJSBoot.parryAPI and __JJSBoot.parryAPI.state and __JJSBoot.parryAPI.state.meta then
+   local anim=track.Animation
+   local id=anim and tostring(anim.AnimationId):match("%d+")
+   local e=id and __JJSBoot.parryAPI.state.meta[id]
+   if e and (e.category=="M1" or e.category=="Special") then return true end
+  end
+  return false
+ end
+
+ local function localChar(c)
+  if not c then return true end
+  if c==LP.Character then return true end
+  if Players:GetPlayerFromCharacter(c)==LP then return true end
+  return false
+ end
+
+ local function facingThreat(character)
+  local root=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+  local tr=character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso"))
+  if not root or not tr then return false,999 end
+  local d=(tr.Position-root.Position).Magnitude
+  if d>range or d<1 then return false,d end
+  local to=(tr.Position-root.Position)*Vector3.new(1,0,1)
+  if to.Magnitude<.05 then return true,d end
+  local look=Vector3.new(root.CFrame.LookVector.X,0,root.CFrame.LookVector.Z)
+  if look.Magnitude<.05 then return true,d end
+  local ang=math.deg(math.acos(math.clamp(look.Unit:Dot(to.Unit),-1,1)))
+  return ang<=95,d -- ~180deg frontal block cone
+ end
+
+ local function onEnemyAnim(character,track)
+  if not on or not alive or localChar(character) then return end
+  if not isAttackTrack(track) then return end
+  if track.TimePosition>maxAge then return end
+  local ok=facingThreat(character)
+  if not ok then return end
+  holdFInstant() -- instant, no queue
+ end
+
+ local function attach(character,humanoid)
+  if localChar(character) then return end
+  local animator=humanoid and (humanoid:FindFirstChildOfClass("Animator") or character:FindFirstChildOfClass("Animator"))
+  if not animator then return end
+  local old=hooks[character]
+  if old and old.animator==animator then return end
+  if old then old.conn:Disconnect() end
+  hooks[character]={animator=animator,conn=animator.AnimationPlayed:Connect(function(t) onEnemyAnim(character,t) end)}
+ end
+
+ local function register(o)
+  if o:IsA("Humanoid") and o.Parent and o.Parent:IsA("Model") and not localChar(o.Parent) then
+   models[o.Parent]=o
+   if on then attach(o.Parent,o) end
+  end
+ end
+ for _,o in ipairs(workspace:GetDescendants()) do register(o) end
+ connect(workspace.DescendantAdded,register)
+ connect(workspace.DescendantRemoving,function(o)
+  if o:IsA("Humanoid") then
+   local c=o.Parent;models[c]=nil
+   local h=hooks[c];if h then h.conn:Disconnect();hooks[c]=nil end
+  end
+ end)
+
+ connect(RS.Heartbeat,function()
+  if not alive or not on then return end
+  if not scriptsActive() or main.Visible then return end
+  for c,h in pairs(models) do
+   if c.Parent and not hooks[c] then attach(c,h) end
+  end
+  local char=LP.Character
+  local hum=char and char:FindFirstChildOfClass("Humanoid")
+  if not hum or hum.Health<=0 then return end
+
+  if autoEvade then
+   local st=hum:GetState()
+   if st==Enum.HumanoidStateType.Ragdoll or st==Enum.HumanoidStateType.FallingDown or st==Enum.HumanoidStateType.Physics or hum.PlatformStand then
+    pressQ()
+   end
+  end
+
+  if yujiCancel and isYuji() then
+   local animator=hum:FindFirstChildOfClass("Animator") or char:FindFirstChildOfClass("Animator")
+   if animator then
+    local messed=false
+    for _,t in ipairs(animator:GetPlayingAnimationTracks()) do
+     if isAttackTrack(t) then
+      local st=hum:GetState()
+      if st==Enum.HumanoidStateType.Physics or st==Enum.HumanoidStateType.Ragdoll or st==Enum.HumanoidStateType.FallingDown or hum.PlatformStand then
+       messed=true
+      end
+      if t.TimePosition>1.15 and t.IsPlaying then messed=true end
+     end
+    end
+    if messed then pressR() end
+   end
+  end
+ end)
+
+ local stConn
+ local function bindHum(h)
+  if stConn then stConn:Disconnect();stConn=nil end
+  if not h then return end
+  stConn=h.StateChanged:Connect(function(_,st)
+   if not on or not autoEvade then return end
+   if st==Enum.HumanoidStateType.Ragdoll or st==Enum.HumanoidStateType.FallingDown then
+    pressQ()
+   end
+  end)
+ end
+ if LP.Character then local h=LP.Character:FindFirstChildOfClass("Humanoid");if h then bindHum(h) end end
+ connect(LP.CharacterAdded,function(c) task.defer(function() bindHum(c:FindFirstChildOfClass("Humanoid") or c:WaitForChild("Humanoid",3)) end) end)
+
+ local function cleanup()
+  if not alive then return end
+  alive=false;on=false;cancelHold()
+  for _,h in pairs(hooks) do pcall(function() h.conn:Disconnect() end) end
+  table.clear(hooks);table.clear(models)
+  if stConn then stConn:Disconnect() end
+ end
+ connect(gui.Destroying,cleanup);connect(unload.Activated,cleanup)
 end)
 
 ;__JJSBoot:run("Mobile action dock",function()
@@ -3394,15 +3524,15 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
  local hitPanel=card(pages.Combat,"Hitbox Expander (Local Only)","")
  toggle(hitPanel,"Hitbox Expander",function() return expand end,function(v) expand=v;if not v then restoreBoxes() end end)
  moduleSlider(hitPanel,"Enemy part size",2,25,boxSize," studs",function() return boxSize end,function(v) boxSize=v end)
- note(hitPanel,"Local-only: enlarges nearby players'/NPCs' body parts on your client (HRP + torso/arms/head when present). Does not change server hit detection. Sizes restore on disable.")
+ note(hitPanel,"Local-only on ENEMIES (never your character). Enlarges HRP/torso/arms/head on your client. Does not change server hit detection. Original sizes restore on disable.")
  local function clearPunchVisuals()
   for _,o in pairs(punchVisuals) do pcall(function() o:Destroy() end) end
   table.clear(punchVisuals)
  end
- local punchPanel=card(pages.Combat,"Expand Punch Range (Local Only)","")
+ local punchPanel=card(pages.Combat,"Expand Punch Range (Enemy Reach Assist)","")
  toggle(punchPanel,"Expand Punch Range",function() return punchExpand end,function(v) punchExpand=v;if not v then clearPunchVisuals() end end)
  moduleSlider(punchPanel,"Visual reach size",2,20,punchSize," studs",function() return punchSize end,function(v) punchSize=v;clearPunchVisuals() end)
- note(punchPanel,"Local visual only: adds non-colliding reach spheres on your hands/arms. Does NOT resize real character parts (resizing arms/HRP freezes movement). Server hit detection is unchanged.")
+ note(punchPanel,"Does NOT resize your character (that freezes you). Instead: visual hand spheres + enlarges NEARBY ENEMY parts so close-range punches are easier to connect on this client. Server hit detection is not guaranteed.")
  local recovery=card(pages.Player,"Local Recovery","")
  toggle(recovery,"Anti Stun",function() return antiStun end,function(v) antiStun=v end)
  toggle(recovery,"Anti Ragdoll",function() return antiRagdoll end,function(v) antiRagdoll=v end)
@@ -3414,7 +3544,7 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
   TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,TextWrapped=true,
   TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=nextOrder(recovery)+2
  })
- note(recovery,"JJS: upright stun (~0.75s on M1) is not the same as ragdoll. True ragdoll can be server-locked/unevadable. This only fights local PlatformStand / Physics / Ragdoll / FallingDown / Sit and local BallSocket-style constraints. Server stun, remote locks, and true ragdoll may re-apply.")
+ note(recovery,"JJS: upright stun ≠ ragdoll. Local recovery: clear PlatformStand/Sit/Physics/Ragdoll, break local constraints, damp velocity, and nudge your HRP hitbox/position upward to unstick. Server true-ragdoll/stun can still re-apply.")
  local unavailable={
   {pages.Combat,"Remote Train Activation","Unavailable: verified train handler and arguments were not present in the provided implementation."},
   {pages.Movement,"Domain Invade","Unavailable: no verified domain entry implementation was provided."},
@@ -3444,9 +3574,14 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
     pcall(function()
      hum.PlatformStand=false
      hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+     local r=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+     if r then
+      r.AssemblyAngularVelocity=Vector3.zero
+      r.CFrame=r.CFrame+Vector3.new(0,0.4,0)
+     end
      if recoveryAggressive then task.defer(function() if hum.Parent then hum:ChangeState(Enum.HumanoidStateType.Running) end end) end
-     lastRecoveryReason="StateChanged anti-ragdoll";lastRecoveryAt=os.clock()
-     if recoveryStatusLabel and recoveryStatusLabel.Parent then recoveryStatusLabel.Text="Last recovery: StateChanged anti-ragdoll";recoveryStatusLabel.TextColor3=T.ok end
+     lastRecoveryReason="StateChanged anti-ragdoll + hitbox nudge";lastRecoveryAt=os.clock()
+     if recoveryStatusLabel and recoveryStatusLabel.Parent then recoveryStatusLabel.Text="Last recovery: StateChanged anti-ragdoll + hitbox nudge";recoveryStatusLabel.TextColor3=T.ok end
     end)
    end
   end)
@@ -3531,11 +3666,32 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
       root.AssemblyLinearVelocity=Vector3.new(v.X*0.35,math.min(v.Y,12),v.Z*0.35)
      end
     end
+    local function nudgeHitbox(reasonTag)
+     -- Move local root slightly to break stuck physics / re-register standing
+     if not root or not root.Parent then return end
+     pcall(function()
+      local look=Vector3.new(root.CFrame.LookVector.X,0,root.CFrame.LookVector.Z)
+      if look.Magnitude<.05 then look=Vector3.new(0,0,-1) else look=look.Unit end
+      local up=Vector3.new(0,0.35,0)
+      local side=Vector3.new(-look.Z,0,look.X)*0.15
+      -- tiny teleport up + forward to exit floor/ragdoll embeds
+      root.CFrame=CFrame.new(root.Position+up+look*0.2+side, root.Position+up+look*2)
+      root.AssemblyLinearVelocity=Vector3.new(0,6,0)
+      root.AssemblyAngularVelocity=Vector3.zero
+      -- brief local size pulse on HRP only (enemies unaffected); restore next frame
+      local old=root.Size
+      root.Size=Vector3.new(math.max(old.X,2.2),math.max(old.Y,2.2),math.max(old.Z,1.2))
+      task.defer(function()
+       if root.Parent then pcall(function() root.Size=old end) end
+      end)
+     end)
+    end
     local function forceUp(reason)
      pcall(function() hum.PlatformStand=false end)
      pcall(function() hum.Sit=false end)
      pcall(function() hum.AutoRotate=true end)
      pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
+     nudgeHitbox(reason)
      if recoveryAggressive then
       task.defer(function()
        if not hum.Parent or hum.Health<=0 then return end
@@ -3545,6 +3701,10 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
          or st==Enum.HumanoidStateType.Physics or st==Enum.HumanoidStateType.Ragdoll
          or st==Enum.HumanoidStateType.FallingDown then
          hum:ChangeState(Enum.HumanoidStateType.Running)
+         if root and root.Parent then
+          root.AssemblyAngularVelocity=Vector3.zero
+          root.CFrame=root.CFrame+Vector3.new(0,0.2,0)
+         end
         end
        end)
       end)
@@ -3574,35 +3734,63 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
    end)
   end
 
-  accumulator+=dt;if accumulator<.15 then return end;accumulator=0
-  if expand and permitted then
+  accumulator+=dt;if accumulator<.05 then return end;accumulator=0
+  -- Enemy hitbox expand + optional punch-reach assist (NEVER modifies local character parts)
+  if (expand or punchExpand) and permitted then
    local keep={}
    local myRoot=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+   local myChar=LP.Character
    for h in pairs(hitboxHumanoids) do
     local char=h.Parent
-    if char and char~=LP.Character and char:IsDescendantOf(workspace) and h and h.Health>0 then
+    if char and char~=myChar and not (Players:GetPlayerFromCharacter(char)==LP) and char:IsDescendantOf(workspace) and h and h.Health>0 then
      local root=char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
      if root and root:IsA("BasePart") then
       local far=myRoot and (root.Position-myRoot.Position).Magnitude or 0
-      if not myRoot or far<=250 then
+      local inHitboxRange=expand and (not myRoot or far<=250)
+      -- Punch range: only enlarge enemies within a close fight distance
+      local inPunchRange=punchExpand and myRoot and far<=math.max(12,punchSize+6)
+      if inHitboxRange or inPunchRange then
+       local sizeMul=1
+       local base=boxSize
+       if inPunchRange and not inHitboxRange then
+        base=math.max(4,punchSize) -- punch-only mode uses punch size on enemy HRP-scale
+       elseif inPunchRange and inHitboxRange then
+        base=math.max(boxSize,punchSize)
+       end
        for _,part in ipairs(collectHitParts(char)) do
-        keep[part]=true
-        if not savedBoxes[part] then
-         savedBoxes[part]={size=part.Size,transparency=part.Transparency,collide=part.CanCollide,massless=part.Massless,canQuery=part.CanQuery}
+        if part~=nil and part.Parent and not part:IsDescendantOf(myChar) then
+         keep[part]=true
+         if not savedBoxes[part] then
+          savedBoxes[part]={size=part.Size,transparency=part.Transparency,collide=part.CanCollide,massless=part.Massless,canQuery=part.CanQuery}
+         end
+         local original=savedBoxes[part].size
+         local n=part.Name
+         local target
+         if n=="HumanoidRootPart" then
+          target=Vector3.new(base,base,base)
+         elseif n=="Head" then
+          target=Vector3.new(base*.5,base*.5,base*.5)
+         elseif n:find("Arm",1,true) or n:find("Hand",1,true) then
+          target=Vector3.new(base*.35,base*.65,base*.35)
+         elseif n=="UpperTorso" or n=="LowerTorso" or n=="Torso" then
+          target=Vector3.new(base*.8,base*.65,base*.45)
+         else
+          target=Vector3.new(base*.7,base*.7,base*.7)
+         end
+         -- Never shrink below original; only expand
+         target=Vector3.new(
+          math.max(original.X,target.X),
+          math.max(original.Y,target.Y),
+          math.max(original.Z,target.Z)
+         )
+         pcall(function()
+          if (part.Size-target).Magnitude>.08 then part.Size=target end
+          part.Transparency=math.clamp(part.Transparency,0.55,0.85)
+          part.CanCollide=false
+          -- Massless on enemies only — does not freeze local character
+          part.Massless=true
+         end)
         end
-        local target=Vector3.new(boxSize,boxSize,boxSize)
-        -- Scale limbs a bit smaller than root so the silhouette stays readable
-        local n=part.Name
-        if n=="Head" then target=Vector3.new(boxSize*.55,boxSize*.55,boxSize*.55)
-        elseif n:find("Arm",1,true) or n:find("Hand",1,true) then target=Vector3.new(boxSize*.4,boxSize*.7,boxSize*.4)
-        elseif n=="UpperTorso" or n=="LowerTorso" or n=="Torso" then target=Vector3.new(boxSize*.85,boxSize*.7,boxSize*.5)
-        end
-        pcall(function()
-         if (part.Size-target).Magnitude>.05 then part.Size=target end
-         part.Transparency=.65
-         part.CanCollide=false
-         part.Massless=true
-        end)
        end
       end
      end
@@ -4285,7 +4473,7 @@ end)
 do
  local orderMap={
   Macros={"Follow-up","Todo macro","Copied sequence","Blackflash Chain V2","Blackflash Chain V3","V2 / V3 Route Calculator","Combo Studio"},
-  Combat={"Auto Parry","Triggerbot","Hitbox Expander (Local Only)","Expand Punch Range (Local Only)","Range Expander (Local Preview)","Cursed Partners Blackflash","Fling Kill All","Remote Train Activation","Auto Counter"},
+  Combat={"Ultra Instinct","Auto Parry","Triggerbot","Hitbox Expander (Local Only)","Expand Punch Range (Enemy Reach Assist)","Range Expander (Local Preview)","Cursed Partners Blackflash","Fling (Spin Self)","Remote Train Activation","Auto Counter"},
   Targeting={"Camera assist and pull"},
   Movement={"Fly","Follow Behind - Automatic Path Jumps","Speed","Build Speed","Jump Power","Loop Teleport Behind","Low Gravity - Local","Slow Spin","Domain Invade"},
   Player={"Invisible (Local Only)","Local Recovery","Player Scanner","Serversided Box Morph"},
