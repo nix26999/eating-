@@ -2060,7 +2060,7 @@ end)
  local autoFace,allowHit,pauseMoving,pauseAction=false,true,false,false
  local lookAhead=40;local blockAttributes={};local filter,sort="Matches","Category"
  local rank={M1=1,Punch=2,Verified=3,Attack=4,Hit=5,Swing=6,Unknown=7,Excluded=8}
- local assets=game:GetService("ReplicatedStorage");local box=card(pages.Combat,"Auto Block","")
+ local assets=game:GetService("ReplicatedStorage");local box=card(pages.Combat,"Auto Block / Auto Parry","")
  local function listen(signal,fn) local c=connect(signal,fn);table.insert(S.links,c);return c end
  local function label(text,h) return make("TextLabel",box,{Size=UDim2.new(1,0,0,h or 50),BackgroundTransparency=1,Text=text,TextWrapped=true,TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,LayoutOrder=nextOrder(box)+2}) end
  label("Auto Block: holds F on early player/NPC attack animations (JJS). You must face the attacker for the ~180deg guard. F is a block attempt only — not a confirmed perfect block. No auto-face, no guessed remotes/projectiles/counters.",72)
@@ -2184,10 +2184,16 @@ end)
    if S.on then for _,t in ipairs(animator:GetPlayingAnimationTracks()) do observe(character,t,true) end end
   end
  end
- local repaint=toggle(box,"Auto Block",function() return S.on end,function(v)
+ local function setAutoGuard(v)
   cancel();S.on=v;S.dirty=true
-  if v then S.scan={{object=assets,index=0}};for c,h in pairs(S.models) do if c:IsDescendantOf(workspace) then attach(c,h);local a=h:FindFirstChildOfClass("Animator");if a then for _,t in ipairs(a:GetPlayingAnimationTracks()) do observe(c,t,true) end end end end;say("ON: close menu to auto-block. JJS M1 startup window active; logging tracks.") else S.scan=nil;say("OFF: F released; logs retained.") end
- end)
+  if v then S.scan={{object=assets,index=0}};for c,h in pairs(S.models) do if c:IsDescendantOf(workspace) then attach(c,h);local a=h:FindFirstChildOfClass("Animator");if a then for _,t in ipairs(a:GetPlayingAnimationTracks()) do observe(c,t,true) end end end end;say("ON: close menu to auto-block/parry. JJS M1 startup window active; logging tracks.") else S.scan=nil;say("OFF: F released; logs retained.") end
+  if repaintBlock then repaintBlock() end
+  if repaintParry then repaintParry() end
+ end
+ local repaintBlock,repaintParry
+ repaintBlock=toggle(box,"Auto Block",function() return S.on end,function(v) setAutoGuard(v) end)
+ repaintParry=toggle(box,"Auto Parry",function() return S.on end,function(v) setAutoGuard(v) end)
+ local repaint=function() if repaintBlock then repaintBlock() end;if repaintParry then repaintParry() end end
  moduleSlider(box,"Block distance",2,30,12," studs",function() return S.range end,function(v) S.range=v;cancel() end)
  moduleSlider(box,"Block hold",100,600,350," ms",function() return math.floor(S.hold*1000+.5) end,function(v) S.hold=v/1000;cancel() end)
  moduleSlider(box,"Max anim age (startup window)",80,500,280," ms",function() return math.floor(S.maxAge*1000+.5) end,function(v) S.maxAge=v/1000;cancel() end)
@@ -3307,7 +3313,9 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
 ;__JJSBoot:run("v2.20 movement and recovery",function()
  local alive=true
  local fly,expand,antiStun,antiRagdoll=false,false,false,false
- local speed,boxSize=50,8
+ local punchExpand=false
+ local speed,boxSize,punchSize=50,8,6
+ local savedPunch={}
  local flightHum,flightRoot,oldRotate,oldPlatform,attachment,velocity,orientation
  local focused=true
  local savedBoxes={};local hitboxHumanoids={}
@@ -3368,8 +3376,12 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
  connect(UIS.WindowFocused,function() focused=true end)
  local hitPanel=card(pages.Combat,"Hitbox Expander (Local Only)","")
  toggle(hitPanel,"Hitbox Expander",function() return expand end,function(v) expand=v;if not v then restoreBoxes() end end)
- moduleSlider(hitPanel,"Part size",2,25,boxSize," studs",function() return boxSize end,function(v) boxSize=v end)
+ moduleSlider(hitPanel,"Enemy part size",2,25,boxSize," studs",function() return boxSize end,function(v) boxSize=v end)
  note(hitPanel,"Local-only: enlarges nearby players'/NPCs' body parts on your client (HRP + torso/arms/head when present). Does not change server hit detection. Sizes restore on disable.")
+ local punchPanel=card(pages.Combat,"Expand Punch Range (Local Only)","")
+ toggle(punchPanel,"Expand Punch Range",function() return punchExpand end,function(v) punchExpand=v;if not v then for part in pairs(savedPunch) do local o=savedPunch[part];if part.Parent and o then pcall(function() part.Size=o.size;part.Transparency=o.transparency;part.Massless=o.massless end) end end;table.clear(savedPunch) end end)
+ moduleSlider(punchPanel,"Arm / hand size",2,20,punchSize," studs",function() return punchSize end,function(v) punchSize=v end)
+ note(punchPanel,"Local-only: enlarges YOUR arms/hands (and slightly HRP) so punch reach is easier to see/judge on this client. Server hit detection is unchanged.")
  local recovery=card(pages.Player,"Local Recovery","")
  toggle(recovery,"Anti Stun (local recovery attempt)",function() return antiStun end,function(v) antiStun=v end)
  toggle(recovery,"Anti Ragdoll (local recovery attempt)",function() return antiRagdoll end,function(v) antiRagdoll=v end)
@@ -3457,9 +3469,45 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
    local stale={};for part in pairs(savedBoxes) do if not keep[part] then table.insert(stale,part) end end
    for _,part in ipairs(stale) do restoreBox(part) end
   else restoreBoxes() end
+  -- Local punch-range expand on own character
+  if punchExpand and permitted and character and hum and hum.Health>0 then
+   local keep={}
+   local names={"Left Arm","Right Arm","LeftArm","RightArm","LeftUpperArm","RightUpperArm","LeftLowerArm","RightLowerArm","Left Hand","Right Hand","LeftHand","RightHand","HumanoidRootPart"}
+   for _,name in ipairs(names) do
+    local part=character:FindFirstChild(name)
+    if part and part:IsA("BasePart") then
+     keep[part]=true
+     if not savedPunch[part] then savedPunch[part]={size=part.Size,transparency=part.Transparency,massless=part.Massless} end
+     local target
+     if part.Name=="HumanoidRootPart" then
+      target=Vector3.new(math.max(part.Size.X,punchSize*.55),math.max(part.Size.Y,punchSize*.55),math.max(part.Size.Z,punchSize*.55))
+     else
+      target=Vector3.new(punchSize*.45,punchSize,punchSize*.45)
+     end
+     pcall(function()
+      if (part.Size-target).Magnitude>.05 then part.Size=target end
+      part.Transparency=math.min(part.Transparency,.4)
+      part.Massless=true
+     end)
+    end
+   end
+   local stale={};for part in pairs(savedPunch) do if not keep[part] then table.insert(stale,part) end end
+   for _,part in ipairs(stale) do
+    local o=savedPunch[part]
+    if part.Parent and o then pcall(function() part.Size=o.size;part.Transparency=o.transparency;part.Massless=o.massless end) end
+    savedPunch[part]=nil
+   end
+  elseif next(savedPunch) then
+   for part,o in pairs(savedPunch) do
+    if part.Parent and o then pcall(function() part.Size=o.size;part.Transparency=o.transparency;part.Massless=o.massless end) end
+   end
+   table.clear(savedPunch)
+  end
  end)
  local function cleanup()
-  if not alive then return end;alive=false;fly=false;expand=false;up=false;down=false;stopFlight();restoreBoxes()
+  if not alive then return end;alive=false;fly=false;expand=false;punchExpand=false;up=false;down=false;stopFlight();restoreBoxes()
+  for part,o in pairs(savedPunch) do if part.Parent and o then pcall(function() part.Size=o.size;part.Transparency=o.transparency;part.Massless=o.massless end) end end
+  table.clear(savedPunch)
  end
  connect(LP.CharacterRemoving,function() up=false;down=false;stopFlight();restoreBoxes() end)
  connect(gui.Destroying,cleanup);connect(unload.Activated,cleanup)
@@ -3742,10 +3790,14 @@ end)
  connect(gui.Destroying,cleanup);connect(unload.Activated,cleanup)
 end)
 
+
 ;__JJSBoot:run("Dash HUD",function()
  local alive=true
  local enabled=true
+ -- JJS community notes: forward/still dash ~6s CD; side/back ~2s CD
+ local FRONT_CD,SIDE_CD=6,2
  local lastKind="—"
+ local frontReadyAt,sideReadyAt=0,0
  local flashUntil={Front=0,Left=0,Right=0,Back=0}
  local counts={Front=0,Left=0,Right=0,Back=0}
  local layer=Instance.new("ScreenGui")
@@ -3756,8 +3808,8 @@ end)
  layer.Parent=PG
  local panel=Instance.new("Frame")
  panel.Name="DashHudPanel"
- panel.Size=UDim2.fromOffset(168,118)
- panel.Position=UDim2.new(1,-186,0,96)
+ panel.Size=UDim2.fromOffset(188,150)
+ panel.Position=UDim2.new(1,-206,0,96)
  panel.BackgroundColor3=Color3.fromRGB(22,15,12)
  panel.BackgroundTransparency=.12
  panel.BorderSizePixel=0
@@ -3767,42 +3819,53 @@ end)
  local stroke=Instance.new("UIStroke");stroke.Color=T.acc;stroke.Thickness=1;stroke.Parent=panel
  local title=Instance.new("TextLabel")
  title.BackgroundTransparency=1
- title.Size=UDim2.new(1,-12,0,20)
+ title.Size=UDim2.new(1,-12,0,18)
  title.Position=UDim2.fromOffset(8,6)
  title.Font=Enum.Font.GothamBold
  title.TextSize=12
  title.TextXAlignment=Enum.TextXAlignment.Left
  title.TextColor3=T.txt
- title.Text="Dash HUD  (drag)"
+ title.Text="Dash CD  (drag)"
  title.Parent=panel
  local lastLabel=Instance.new("TextLabel")
  lastLabel.BackgroundTransparency=1
- lastLabel.Size=UDim2.new(1,-12,0,16)
- lastLabel.Position=UDim2.fromOffset(8,26)
+ lastLabel.Size=UDim2.new(1,-12,0,14)
+ lastLabel.Position=UDim2.fromOffset(8,24)
  lastLabel.Font=Enum.Font.Gotham
  lastLabel.TextSize=11
  lastLabel.TextXAlignment=Enum.TextXAlignment.Left
  lastLabel.TextColor3=T.dim
  lastLabel.Text="Last: —"
  lastLabel.Parent=panel
+ -- Front cooldown row
+ local frontRow=Instance.new("Frame");frontRow.Size=UDim2.new(1,-16,0,28);frontRow.Position=UDim2.fromOffset(8,42);frontRow.BackgroundColor3=T.p2;frontRow.BorderSizePixel=0;frontRow.Parent=panel
+ local fc=Instance.new("UICorner");fc.CornerRadius=UDim.new(0,6);fc.Parent=frontRow
+ local frontFill=Instance.new("Frame");frontFill.Size=UDim2.fromScale(1,1);frontFill.BackgroundColor3=T.acc;frontFill.BorderSizePixel=0;frontFill.Parent=frontRow
+ local ffc=Instance.new("UICorner");ffc.CornerRadius=UDim.new(0,6);ffc.Parent=frontFill
+ local frontText=Instance.new("TextLabel");frontText.BackgroundTransparency=1;frontText.Size=UDim2.fromScale(1,1);frontText.Font=Enum.Font.GothamBold;frontText.TextSize=12;frontText.TextColor3=T.txt;frontText.Text="Front  READY";frontText.Parent=frontRow
+ -- Side cooldown row (Left/Right/Back share ~2s in JJS notes)
+ local sideRow=Instance.new("Frame");sideRow.Size=UDim2.new(1,-16,0,28);sideRow.Position=UDim2.fromOffset(8,74);sideRow.BackgroundColor3=T.p2;sideRow.BorderSizePixel=0;sideRow.Parent=panel
+ local sc=Instance.new("UICorner");sc.CornerRadius=UDim.new(0,6);sc.Parent=sideRow
+ local sideFill=Instance.new("Frame");sideFill.Size=UDim2.fromScale(1,1);sideFill.BackgroundColor3=Color3.fromRGB(80,200,120);sideFill.BorderSizePixel=0;sideFill.Parent=sideRow
+ local sfc=Instance.new("UICorner");sfc.CornerRadius=UDim.new(0,6);sfc.Parent=sideFill
+ local sideText=Instance.new("TextLabel");sideText.BackgroundTransparency=1;sideText.Size=UDim2.fromScale(1,1);sideText.Font=Enum.Font.GothamBold;sideText.TextSize=12;sideText.TextColor3=T.txt;sideText.Text="Side  READY";sideText.Parent=sideRow
  local cells={}
- local order={{"Front",UDim2.fromOffset(56,46)},{"Left",UDim2.fromOffset(8,74)},{"Right",UDim2.fromOffset(104,74)},{"Back",UDim2.fromOffset(56,74)}}
+ local order={{"Front",UDim2.fromOffset(8,108)},{"Left",UDim2.fromOffset(52,108)},{"Right",UDim2.fromOffset(96,108)},{"Back",UDim2.fromOffset(140,108)}}
  for _,entry in ipairs(order) do
   local name,pos=entry[1],entry[2]
   local b=Instance.new("TextLabel")
-  b.Size=UDim2.fromOffset(56,24)
+  b.Size=UDim2.fromOffset(40,22)
   b.Position=pos
   b.BackgroundColor3=T.p2
   b.TextColor3=T.dim
   b.Font=Enum.Font.GothamBold
-  b.TextSize=11
-  b.Text=name
+  b.TextSize=10
+  b.Text=name:sub(1,1)
   b.BorderSizePixel=0
   b.Parent=panel
-  local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,6);c.Parent=b
+  local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,5);c.Parent=b
   cells[name]=b
  end
- -- drag
  local dragging,dragStart,origin,touch=false,nil,nil,nil
  connect(panel.InputBegan,function(input)
   if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
@@ -3818,11 +3881,24 @@ end)
  connect(UIS.InputEnded,function(input) if input==touch then dragging=false;touch=nil end end)
  local function paint()
   local now=os.clock()
+  local fLeft=math.max(0,frontReadyAt-now)
+  local sLeft=math.max(0,sideReadyAt-now)
+  if fLeft<=0 then
+   frontFill.Size=UDim2.fromScale(1,1);frontText.Text="Front  READY ("..FRONT_CD.."s)";frontText.TextColor3=T.ok
+  else
+   frontFill.Size=UDim2.fromScale(math.clamp(1-fLeft/FRONT_CD,0,1),1)
+   frontText.Text=string.format("Front  %.1fs",fLeft);frontText.TextColor3=T.txt
+  end
+  if sLeft<=0 then
+   sideFill.Size=UDim2.fromScale(1,1);sideText.Text="Side  READY ("..SIDE_CD.."s)";sideText.TextColor3=T.ok
+  else
+   sideFill.Size=UDim2.fromScale(math.clamp(1-sLeft/SIDE_CD,0,1),1)
+   sideText.Text=string.format("Side  %.1fs",sLeft);sideText.TextColor3=T.txt
+  end
   for kind,cell in pairs(cells) do
    local hot=now<flashUntil[kind]
    cell.BackgroundColor3=hot and T.acc or T.p2
    cell.TextColor3=hot and Color3.fromRGB(28,14,6) or T.dim
-   cell.Text=hot and (kind.."!") or (kind.." "..tostring(counts[kind]))
   end
   lastLabel.Text="Last: "..lastKind
   layer.Enabled=enabled and hubUnlocked and __JJSBoot.ready
@@ -3833,10 +3909,7 @@ end)
   local root=char and char:FindFirstChild("HumanoidRootPart")
   if not hum or not root then return "Front" end
   local move=hum.MoveDirection
-  if move.Magnitude<.08 then
-   -- stationary Q is treated as front dash in JJS notes
-   return "Front"
-  end
+  if move.Magnitude<.08 then return "Front" end
   local look=Vector3.new(root.CFrame.LookVector.X,0,root.CFrame.LookVector.Z)
   if look.Magnitude<.05 then return "Front" end
   look=look.Unit
@@ -3854,14 +3927,15 @@ end)
   local kind=classifyDash()
   lastKind=kind
   counts[kind]=(counts[kind] or 0)+1
-  flashUntil[kind]=os.clock()+.55
+  flashUntil[kind]=os.clock()+.45
+  local now=os.clock()
+  if kind=="Front" then frontReadyAt=now+FRONT_CD else sideReadyAt=now+SIDE_CD end
   paint()
  end
  connect(UIS.InputBegan,function(input,g)
   if g or not alive then return end
   if input.KeyCode==Enum.KeyCode.Q then noteDash() end
  end)
- -- mobile: many JJS layouts still map dash to a button named with dash/q; also velocity spike fallback
  local lastVel=Vector3.zero
  connect(RS.Heartbeat,function()
   if not alive then return end
@@ -3873,7 +3947,6 @@ end)
   local horizontal=Vector3.new(vel.X,0,vel.Z)
   local prev=Vector3.new(lastVel.X,0,lastVel.Z)
   lastVel=vel
-  -- sudden horizontal speed jump without recent Q flash can still mark a dash (controller / remapped)
   if horizontal.Magnitude>38 and (horizontal.Magnitude-prev.Magnitude)>28 then
    local recent=false
    local now=os.clock()
@@ -3883,7 +3956,7 @@ end)
  end)
  local ui=card(pages.Visuals,"Dash HUD","")
  toggle(ui,"Show Dash HUD",function() return enabled end,function(v) enabled=v;paint() end)
- make("TextLabel",ui,{Size=UDim2.new(1,0,0,48),BackgroundTransparency=1,Text="Movable on-screen panel. Flashes Front / Left / Right / Back when Q dash (or a sharp dash-like burst) is detected. Counts session uses.",TextWrapped=true,TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=nextOrder(ui)+2})
+ make("TextLabel",ui,{Size=UDim2.new(1,0,0,56),BackgroundTransparency=1,Text="Movable cooldown HUD. Front dash CD = 6s, Side/Back dash CD = 2s (JJS community estimates). Bars count down after Q / dash burst. Not server-synced.",TextWrapped=true,TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=nextOrder(ui)+2})
  local function cleanup()
   if not alive then return end
   alive=false
