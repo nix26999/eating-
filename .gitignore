@@ -1,4 +1,4 @@
--- JJS HUB v2.18: sequential initialization + device badge + inspected additions.
+-- JJS HUB v2.19: sequential initialization + device badge + inspected additions.
 local __JJSBoot=(function()
  local b={done=0,failed=0,total=36,ready=false,screen=nil,label=nil,fill=nil}
  local Players=game:GetService("Players")
@@ -31,7 +31,7 @@ local __JJSBoot=(function()
   local scale=Instance.new("UIScale");local camera=workspace.CurrentCamera;local viewport=camera and camera.ViewportSize or Vector2.new(760,540);scale.Scale=math.min(1,(viewport.X-30)/500,(viewport.Y-30)/250);scale.Parent=panel
   local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,12);corner.Parent=panel
   local stroke=Instance.new("UIStroke");stroke.Color=Color3.fromRGB(255,122,26);stroke.Thickness=1;stroke.Parent=panel
-  local title=Instance.new("TextLabel");title.Size=UDim2.fromOffset(450,34);title.Position=UDim2.fromOffset(24,22);title.BackgroundTransparency=1;title.Font=Enum.Font.GothamBold;title.TextSize=22;title.TextColor3=Color3.fromRGB(255,242,224);title.TextXAlignment=Enum.TextXAlignment.Left;title.Text="JJS HUB  /  v2.18";title.Parent=panel
+  local title=Instance.new("TextLabel");title.Size=UDim2.fromOffset(450,34);title.Position=UDim2.fromOffset(24,22);title.BackgroundTransparency=1;title.Font=Enum.Font.GothamBold;title.TextSize=22;title.TextColor3=Color3.fromRGB(255,242,224);title.TextXAlignment=Enum.TextXAlignment.Left;title.Text="JJS HUB  /  v2.19";title.Parent=panel
   b:icon(panel,UDim2.fromOffset(26,72),34)
   local device=Instance.new("TextLabel");device.Size=UDim2.fromOffset(390,32);device.Position=UDim2.fromOffset(74,74);device.BackgroundTransparency=1;device.Font=Enum.Font.GothamBold;device.TextSize=mobile and 18 or 15;device.TextColor3=b.color;device.TextXAlignment=Enum.TextXAlignment.Left;device.Text="Detected "..b.device.."  -  preparing modules";device.Parent=panel
   local label=Instance.new("TextLabel");label.Size=UDim2.fromOffset(450,48);label.Position=UDim2.fromOffset(24,120);label.BackgroundTransparency=1;label.Font=Enum.Font.Gotham;label.TextSize=mobile and 18 or 12;label.TextColor3=Color3.fromRGB(200,160,180);label.TextXAlignment=Enum.TextXAlignment.Left;label.TextWrapped=true;label.Text="Device checked. Initializing interface...";label.Parent=panel;b.label=label
@@ -44,7 +44,7 @@ local __JJSBoot=(function()
   if self.label and self.label.Parent then self.label.Text=string.format("Loading %d / %d: %s",self.done+1,self.total,name) end
   task.wait(.025)
   local ok,err=xpcall(fn,function(e) return tostring(e) end)
-  if not ok then self.failed+=1;warn("JJS v2.18 ["..name.."]: "..tostring(err)) end
+  if not ok then self.failed+=1;warn("JJS v2.19 ["..name.."]: "..tostring(err)) end
   self.done+=1
   if self.fill and self.fill.Parent then self.fill.Size=UDim2.fromScale(math.clamp(self.done/self.total,0,1),1) end
   task.wait(.025)
@@ -252,7 +252,7 @@ local scale=make("UIScale",main,{Scale=1})
 local top=make("Frame",main,{Size=UDim2.new(1,0,0,44),BackgroundColor3=T.panel,BorderSizePixel=0,Active=true})
 corner(top,12)
 make("Frame",top,{Size=UDim2.new(1,0,0,14),Position=UDim2.new(0,0,1,-14),BackgroundColor3=T.panel,BorderSizePixel=0})
-make("TextLabel",top,{Size=UDim2.fromOffset(225,44),Position=UDim2.fromOffset(16,0),BackgroundTransparency=1,Text="JJS HUB v2.18",TextColor3=T.txt,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left})
+make("TextLabel",top,{Size=UDim2.fromOffset(225,44),Position=UDim2.fromOffset(16,0),BackgroundTransparency=1,Text="JJS HUB v2.19",TextColor3=T.txt,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left})
 local badge=make("TextLabel",top,{Size=UDim2.fromOffset(48,18),Position=UDim2.new(0,220,.5,-9),BackgroundColor3=T.p2,Text="325",TextColor3=T.acc,Font=Enum.Font.GothamBold,TextSize=11}); corner(badge,4)
 local DISCORD_URL="https://discord.gg/RrQQh6B4nP"
 local discordBtn=make("TextButton",top,{Size=UDim2.fromOffset(86,28),Position=UDim2.new(1,-130,.5,-14),BackgroundColor3=Color3.fromRGB(88,101,242),Text="Discord",TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=12}); corner(discordBtn,6)
@@ -2047,7 +2047,7 @@ end)
 
 ;__JJSBoot:run("Loading Settings and Device Details",function()
  -- JJS25: Loading Settings and Device Details
- local box=card(pages.Settings,"v2.18 Device and Loading","")
+ local box=card(pages.Settings,"v2.19 Device and Loading","")
  make("TextLabel",box,{Size=UDim2.new(1,0,0,125),BackgroundTransparency=1,Text="Detected: "..__JJSBoot.device.."\nBlue monitor: PC. Yellow phone: touch-first/mobile. Hybrid touch + keyboard is classed PC. This is input-capability detection, not exact hardware identification.\nModules initialize sequentially with short yields. New optional features start OFF. Original key gate remains. Optional additions are included; further modules remain pending review.",TextWrapped=true,TextColor3=T.mut,Font=Enum.Font.Gotham,TextSize=11,LayoutOrder=3})
 
 end)
@@ -2060,23 +2060,63 @@ end)
  connect(workspace.DescendantAdded,function(o) if o:IsA("Humanoid") and o.Parent:IsA("Model") then models[o.Parent]=o end end)
  connect(workspace.DescendantRemoving,function(o) if o:IsA("Humanoid") then models[o.Parent]=nil end end)
  local assets=game:GetService("ReplicatedStorage");local box=card(pages.Combat,"Auto Parry","")
- local info=make("TextLabel",box,{Size=UDim2.new(1,0,0,76),BackgroundTransparency=1,Text="Normal M1/punch Animation discovery -> F block inside the stud range. Opaque assets cannot be recognized reliably. Input emulation depends on the executor; this is not a guaranteed perfect block.",TextWrapped=true,TextColor3=T.mut,Font=Enum.Font.Gotham,TextSize=12,LayoutOrder=3});ord[box]=3
+ local info=make("TextLabel",box,{Size=UDim2.new(1,0,0,76),BackgroundTransparency=1,Text="Logs player / NPC animation playback and sorts M1, Punch, Hit, Swing and reactions. M1/Punch or verified IDs attempt F within range; Hit/Swing require opt-in. Numeric-only tracks need verified IDs. Success is unconfirmed.",TextWrapped=true,TextColor3=T.mut,Font=Enum.Font.Gotham,TextSize=12,LayoutOrder=3});ord[box]=3
  local status=make("TextLabel",box,{Size=UDim2.new(1,0,0,48),BackgroundTransparency=1,Text="OFF",TextWrapped=true,TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=12,LayoutOrder=4});ord[box]=4
  local repaint=nil
  local function say(v) if status.Parent then status.Text=v end end
  local function listen(sig,fn) local c=sig:Connect(fn);table.insert(S.links,c);return c end
- local function norm(v) return tostring(v or ""):lower():gsub("[%s_%-]","") end
- local groups={m1=true,m1s=true,m1combo=true,punch=true,punches=true,normalpunches=true,basicpunches=true}
- local bad={idle=true,walk=true,run=true,walking=true,running=true,block=true,blocking=true,parry=true,counter=true,emote=true,emotes=true,dance=true,dances=true,pose=true,stun=true,ragdoll=true,hitreaction=true}
- local function reject(n) return bad[n] or n:find("downslam",1,true) or n:find("downsmash",1,true) or n:find("uppercut",1,true) or n:find("uptilt",1,true) end
- local function named(n) return n=="m1" or n=="punch" or n:match("^punch%d+$") or n:match("^m1%d+$") or n:match("^m1hit%d+$") or n:match("^normalpunch%d*$") or n:match("^basicpunch%d*$") end
+ local function norm(v) return tostring(v or ""):lower():gsub("[^%w]","") end
+ local ranks={M1=1,Punch=2,Verified=3,Hit=4,Swing=5,Unknown=6,Excluded=7}
+ local metadata={};local metadataCount=0;local manual={};local allowAmbiguous=false
+ local logs={};local logKeys={};local maxLogs=200;local logDirty=true;local logClock=0;local view="Matches";local sortMode="Category"
+ local excluded={"hitreaction","hitreact","hitstun","hurt","flinch","stagger","ragdoll","knockback","knockdown","gethit","takinghit","receivedhit","damage","damaged","blocking","block","parry","counter","emote","dance","idle","walking","running","stunned","downslam","downsmash","uppercut","uptilt"}
+ local function category(a,label,withMetadata)
+  local id=a and a.AnimationId:match("%d+")
+  local names={a and a.Name or "",label or ""};local node=a and a.Parent;local depth=0
+  while node and depth<5 do
+   -- A character/player name is not an attack label.
+   if node:IsA("Model") or node:IsA("Humanoid") or node:IsA("Animator") then break end
+   table.insert(names,node.Name);node=node.Parent;depth+=1
+  end
+  local normalized={};local grouped=false
+  for _,name in ipairs(names) do
+   local n=norm(name);table.insert(normalized,n)
+   for _,bad in ipairs(excluded) do if n:find(bad,1,true) then return "Excluded",id end end
+   if n=="stun" or n=="walk" or n=="run" then return "Excluded",id end
+  end
+  if id and manual[id] then return "Verified",id end
+  for _,n in ipairs(normalized) do if n:find("m1",1,true) then return "M1",id end end
+  for _,n in ipairs(normalized) do if n:find("punch",1,true) then return "Punch",id end end
+  for _,n in ipairs(normalized) do if n:find("hit",1,true) then return "Hit",id end end
+  for _,n in ipairs(normalized) do if n:find("swing",1,true) then return "Swing",id end end
+  if withMetadata and id and metadata[id] then return metadata[id].category,id end
+  return "Unknown",id
+ end
+ local function accepted(cat) return cat=="M1" or cat=="Punch" or cat=="Verified" or allowAmbiguous and (cat=="Hit" or cat=="Swing") end
  local function discover(a,label)
-  if not a or not a:IsA("Animation") then return end;local id=a.AnimationId:match("%d+");if not id then return end
-  local n=norm(a.Name);label=norm(label);if reject(n) or reject(label) then return end
-  local p=a.Parent;local depth=0;local grouped=false;while p and depth<7 do local k=norm(p.Name);if reject(k) then return end;if groups[k] then grouped=true end;p=p.Parent;depth+=1 end
-  if S.ids[id] then return id end
-  local valid=named(n) or named(label) or grouped and (n:match("^[1-4]$") or n:match("^hit[1-4]$") or n:match("^swing[1-4]$") or n=="swing" or n=="animation")
-  if valid and S.count<512 then S.ids[id]=true;S.count+=1;return id end
+  if not a or not a:IsA("Animation") then return end
+  local cat,id=category(a,label,false);if not id then return end
+  local existing=metadata[id]
+  if existing and cat~="Unknown" and ranks[cat]<ranks[existing.category] or not existing and metadataCount<2048 then if not existing then metadataCount+=1 end;metadata[id]={category=cat,name=a.Name} end
+  if not accepted(cat) and existing and cat=="Unknown" then cat=existing.category end
+  if cat=="Excluded" then return end
+  if accepted(cat) then
+   if not S.ids[id] and S.count<512 then S.ids[id]=true;S.count+=1 end
+   if S.ids[id] then return id end
+  end
+ end
+ local function logTrack(player,character,track)
+  local a=track.Animation;if not a then return end
+  local cat,id=category(a,track.Name,true);if not id then return end
+  local source=player and ("Player: "..player.Name) or ("NPC: "..character.Name)
+  local sourceKey=player and tostring(player.UserId) or character:GetFullName()
+  local key=sourceKey..":"..id..":"..cat
+  local entry=logKeys[key]
+  if not entry then
+   if #logs>=maxLogs then local removed=table.remove(logs,1);logKeys[removed.key]=nil end
+   entry={key=key,id=id,name=a.Name,track=track.Name,source=source,category=cat,count=0,last=0};logKeys[key]=entry;table.insert(logs,entry)
+  end
+  entry.count+=1;entry.last=os.clock();logDirty=true
  end
  local function rig() local c=LP.Character;local h=c and c:FindFirstChildOfClass("Humanoid");local r=c and c:FindFirstChild("HumanoidRootPart");if h and r and h.Health>0 then return c,h,r end end
  local function keyUp() if S.backend=="vim" and okVIM and VIM then pcall(function() VIM:SendKeyEvent(false,Enum.KeyCode.F,false,game) end) elseif S.backend=="key" and typeof(keyrelease)=="function" then pcall(keyrelease,0x46) end;S.backend=nil end
@@ -2110,8 +2150,10 @@ end)
   task.spawn(function() while S.alive and S.owner==o and S.on and S.focus and o.gen==S.gen and LP.Character==o.own and running and scriptsActive() and rig() and not UIS:GetFocusedTextBox() and near(o.player,o.character,S.range,true) and os.clock()<o.finish do if not o.track.IsPlaying and os.clock()>=o.minHold then break end;RS.Heartbeat:Wait() end;release(o) end);return true
  end
  local function observe(p,c,t,existing)
+  if S.alive and S.on and c~=LP.Character then logTrack(p,c,t) end
   if not S.alive or not S.on or not t.IsPlaying or existing and t.TimePosition>.2 or t.TimePosition>.4 or not near(p,c,math.min(50,S.range+8),false) then return end
-  local id=t.Animation and t.Animation.AnimationId:match("%d+");if not id then return end;if not S.ids[id] then id=discover(t.Animation,t.Name) end;if not id or not S.ids[id] then return end
+  local cat=category(t.Animation,t.Name,true);if not accepted(cat) then return end
+  local id=discover(t.Animation,t.Name);if not id or not S.ids[id] then return end
   if S.owner and near(p,c,S.range,true) then S.owner.track=t;S.owner.finish=math.min(S.owner.start+.9,os.clock()+.5);S.jobs[t]=nil;return end
   local count=0;for _ in pairs(S.jobs) do count+=1 end;if count>=32 then return end
   local v={player=p,character=c,track=t,gen=S.gen,own=LP.Character,expires=os.clock()+.7};S.jobs[t]=v;if react(v) then S.jobs[t]=nil end
@@ -2126,7 +2168,47 @@ end)
  repaint=toggle(box,"Auto Parry",function() return S.on end,function(v) cancel();S.on=v;if v then S.scan={{object=assets,index=0}};local ps=LP:FindFirstChild("PlayerScripts");if ps then table.insert(S.scan,{object=ps,index=0}) end;for p,e in pairs(S.hooks) do e.link:Disconnect();S.hooks[p]=nil end;for model,h in pairs(models) do if h.Parent==model and model:IsDescendantOf(workspace) then attach(model) else models[model]=nil;local old=S.hooks[model];if old then old.link:Disconnect();S.hooks[model]=nil end end end;say("ON - close menu to react. Discovering punch assets.") else S.scan=nil;say("OFF - block released.") end end)
  moduleSlider(box,"Block distance",2,30,12," studs",function() return S.range end,function(v) S.range=v;cancel() end)
  local ids=make("TextBox",box,{Size=UDim2.new(1,0,0,38),Text="",PlaceholderText="Verified player / NPC M1 animation IDs",ClearTextOnFocus=false,BackgroundColor3=T.p2,TextColor3=T.txt,Font=Enum.Font.Code,TextSize=11,LayoutOrder=nextOrder(box)+2})
- listen(ids.FocusLost,function() for id in ids.Text:gmatch("%d+") do if not S.ids[id] and S.count<512 then S.ids[id]=true;S.count+=1 end end end)
+ listen(ids.FocusLost,function() manual={};for id in ids.Text:gmatch("%d+") do manual[id]=true;if not S.ids[id] and S.count<512 then S.ids[id]=true;S.count+=1 end end;say("Verified IDs updated. Excluded reactions remain excluded.") end)
+
+
+ local logHeader=make("TextLabel",box,{Size=UDim2.new(1,0,0,52),BackgroundTransparency=1,Text="Animation log: played tracks only; player and NPC sources. M1/Punch match by exposed labels, not verified damage. Hit/Swing are ambiguous.",TextWrapped=true,TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,LayoutOrder=nextOrder(box)+2})
+ toggle(box,"Allow ambiguous Hit / Swing matches",function() return allowAmbiguous end,function(v) allowAmbiguous=v;cancel();logDirty=true end)
+ local function logButton(text,fn)
+  local b=make("TextButton",box,{Size=UDim2.new(1,0,0,32),BackgroundColor3=T.p2,Text=text,TextColor3=T.txt,Font=Enum.Font.Gotham,TextSize=11,LayoutOrder=nextOrder(box)+2});corner(b,5);listen(b.Activated,fn);return b
+ end
+ local filterButton,sortButton
+ filterButton=logButton("Log filter: Matches",function() view=view=="Matches" and "All" or view=="All" and "Excluded" or "Matches";filterButton.Text="Log filter: "..view;logDirty=true end)
+ sortButton=logButton("Log sort: Category",function() sortMode=sortMode=="Category" and "Recent" or sortMode=="Recent" and "Count" or "Category";sortButton.Text="Log sort: "..sortMode;logDirty=true end)
+ local logView=make("TextLabel",box,{Size=UDim2.new(1,0,0,300),BackgroundTransparency=1,Text="Enable Auto Parry to collect played animations. Open this panel after nearby players / NPCs attack.",TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,TextColor3=T.dim,Font=Enum.Font.Code,TextSize=10,LayoutOrder=nextOrder(box)+2})
+ local exportBox=make("TextBox",box,{Size=UDim2.new(1,0,0,100),Text="",PlaceholderText="Exported animation log JSON appears here",ClearTextOnFocus=false,MultiLine=true,TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,BackgroundColor3=T.p2,TextColor3=T.txt,Font=Enum.Font.Code,TextSize=10,LayoutOrder=nextOrder(box)+2})
+ local function sortedLog()
+  local list={}
+  for _,entry in ipairs(logs) do
+   local match=entry.category~="Unknown" and entry.category~="Excluded"
+   if view=="All" or view=="Matches" and match or view=="Excluded" and entry.category=="Excluded" then table.insert(list,entry) end
+  end
+  table.sort(list,function(a,b)
+   if sortMode=="Category" and ranks[a.category]~=ranks[b.category] then return ranks[a.category]<ranks[b.category] end
+   if sortMode=="Count" and a.count~=b.count then return a.count>b.count end
+   if a.last~=b.last then return a.last>b.last end
+   return a.key<b.key
+  end)
+  return list
+ end
+ logButton("Export full animation log to JSON",function()
+  local out={schema="JJSAnimationLog",version=1,entries={}}
+  for _,e in ipairs(logs) do table.insert(out.entries,{id=e.id,name=e.name,track=e.track,source=e.source,category=e.category,count=e.count,lastObservedSeconds=e.last}) end
+  exportBox.Text=game:GetService("HttpService"):JSONEncode(out)
+ end)
+ logButton("Clear animation log",function() logs={};logKeys={};exportBox.Text="";logDirty=true end)
+ listen(RS.Heartbeat,function(dt)
+  if not S.alive then return end;logClock+=dt;if logClock<.3 or not logDirty then return end;logClock=0;logDirty=false
+  local entries=sortedLog();local rows={string.format("%s | %s | %d shown / %d stored (max %d)",view,sortMode,#entries,#logs,maxLogs)}
+  for i=1,math.min(10,#entries) do local e=entries[i];local attack=accepted(e.category) and "eligible" or "log only";table.insert(rows,string.format("[%s / %s] %s x%d\n%s | %s",e.category,attack,e.id,e.count,e.source,e.name:sub(1,45))) end
+  if #entries==0 then table.insert(rows,S.on and "No matching played animations yet." or "Auto Parry OFF. Logs are retained; enable to collect.") end
+  if #entries>10 then table.insert(rows,"First 10 shown; export JSON for the full log.") end
+  logView.Text=table.concat(rows,"\n")
+ end)
 
  __JJSBoot.stopParry=function() S.on=false;cancel("Stopped.");if repaint then repaint() end end
  local function shutdown() if not S.alive then return end;S.alive=false;S.on=false;cancel();S.scan=nil;for _,e in pairs(S.hooks) do e.link:Disconnect() end;for _,c in ipairs(S.links) do c:Disconnect() end;S.hooks={};S.links={};if __JJSBoot.autoParryShutdown==shutdown then __JJSBoot.autoParryShutdown=nil;__JJSBoot.stopParry=nil end end
@@ -3156,8 +3238,8 @@ end
 end)
 if not okFX then warn("Popup section failed (rest of script still loaded): "..tostring(errFX)) end
 
--- v2.18: explicit local-only additions; no guessed remotes or server bypasses.
-;__JJSBoot:run("v2.18 movement and recovery",function()
+-- v2.19: explicit local-only additions; no guessed remotes or server bypasses.
+;__JJSBoot:run("v2.19 movement and recovery",function()
  local alive=true
  local fly,expand,antiStun,antiRagdoll=false,false,false,false
  local speed,boxSize=50,8
@@ -3486,5 +3568,5 @@ end)
 
 applyResponsiveLayout()
 end,function(e) return debug.traceback(tostring(e),2) end)
-if not __okMain then warn("JJS HUB v2.18: "..tostring(__errMain)) end
+if not __okMain then warn("JJS HUB v2.19: "..tostring(__errMain)) end
 __JJSBoot:finish(__okMain)
