@@ -1671,11 +1671,11 @@ end)
  local mouseDown=false
  local skipTeam=true
  local range=300
- local hitDelayMs=300
- local contactMs=450
+ local hitDelayMs=200
+ local contactMs=550
  local ownedBusy=false
  local panel=card(pages.Combat,"Fling Kill All","")
- local feedback=make("TextLabel",panel,{Size=UDim2.new(1,0,0,44),BackgroundTransparency=1,Text="Ready - experimental; hits and kills unverified",TextColor3=T.dim,TextWrapped=true,TextSize=11,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=3})
+ local feedback=make("TextLabel",panel,{Size=UDim2.new(1,0,0,44),BackgroundTransparency=1,Text="Ready - improved fling contact. Hits/kills still depend on server physics.",TextColor3=T.dim,TextWrapped=true,TextSize=11,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=3})
  ord[panel]=3
  toggle(panel,"Skip teammates",function() return skipTeam end,function(v) if not active then skipTeam=v end end)
  moduleSlider(panel,"Maximum range",25,1000,range," studs",function() return range end,function(v) if not active then range=v end end)
@@ -1711,7 +1711,10 @@ end)
   snapshot=nil
   if not state then return end
   for part,value in pairs(state.collisions) do if part.Parent then pcall(function() part.CanCollide=value end) end end
-  if state.humanoid.Parent then pcall(function() state.humanoid.AutoRotate=state.autoRotate end) end
+  if state.humanoid.Parent then pcall(function()
+   state.humanoid.AutoRotate=state.autoRotate
+   if state.platform~=nil then state.humanoid.PlatformStand=state.platform end
+  end) end
   if state.root.Parent and LP.Character==state.character then
    pcall(function()
     state.root.AssemblyLinearVelocity=Vector3.zero
@@ -1751,50 +1754,82 @@ end)
   local target,targetHumanoid,targetRoot=living(player)
   if not root or not targetRoot or player==LP or(skipTeam and teammate(player)) then return false,false,0,"Skipped" end
   if(targetRoot.Position-root.Position).Magnitude>range then return false,false,0,"Out of range" end
-  local state={character=character,humanoid=humanoid,root=root,origin=root.CFrame,autoRotate=humanoid.AutoRotate,collisions={}}
+  local state={character=character,humanoid=humanoid,root=root,origin=root.CFrame,autoRotate=humanoid.AutoRotate,collisions={},platform=humanoid.PlatformStand}
   snapshot=state
   local sent,completed,displacement=false,false,0
   local reason="Cancelled"
   local ok,err=pcall(function()
    humanoid.AutoRotate=false
    report("Teleport behind: "..player.DisplayName)
-   local position=targetRoot.Position-targetRoot.CFrame.LookVector*2.6
+   -- Stick close behind torso height for reliable M1 + contact
+   local back=Vector3.new(targetRoot.CFrame.LookVector.X,0,targetRoot.CFrame.LookVector.Z)
+   local position
+   if back.Magnitude<.05 then
+    position=targetRoot.Position+Vector3.new(0,0.5,2.2)
+   else
+    position=targetRoot.Position-back.Unit*2.2+Vector3.new(0,0.5,0)
+   end
    root.CFrame=CFrame.lookAt(position,Vector3.new(targetRoot.Position.X,position.Y,targetRoot.Position.Z))
    root.AssemblyLinearVelocity=Vector3.zero
    root.AssemblyAngularVelocity=Vector3.zero
-   if not waitFor(.08,id,player,state,target,targetHumanoid,targetRoot) then return end
-   if(root.Position-targetRoot.Position).Magnitude>7 then reason="Target moved before M1";return end
+   if not waitFor(.05,id,player,state,target,targetHumanoid,targetRoot) then return end
+   -- Re-stick if target drifted
+   if (root.Position-targetRoot.Position).Magnitude>6 then
+    local b2=Vector3.new(targetRoot.CFrame.LookVector.X,0,targetRoot.CFrame.LookVector.Z)
+    local pos2=b2.Magnitude<.05 and (targetRoot.Position+Vector3.new(0,0.5,2.2)) or (targetRoot.Position-b2.Unit*2.2+Vector3.new(0,0.5,0))
+    root.CFrame=CFrame.lookAt(pos2,Vector3.new(targetRoot.Position.X,pos2.Y,targetRoot.Position.Z))
+   end
+   if(root.Position-targetRoot.Position).Magnitude>8 then reason="Target moved before M1";return end
    if UIS:GetFocusedTextBox() then reason="Typing - cancelled";return end
    report("M1 input: "..player.DisplayName)
    mouseDown=true
-   local inputOK,inputError=pcall(function() VIM:SendMouseButtonEvent(0,0,0,true,game,0) end)
+   local pos=UIS:GetMouseLocation()
+   local inset=game:GetService("GuiService"):GetGuiInset()
+   local mx,my=pos.X-inset.X,pos.Y-inset.Y
+   local inputOK=pcall(function() VIM:SendMouseButtonEvent(mx,my,0,true,game,0) end)
    if not inputOK then releaseMouse();reason="M1 input unavailable";return end
-   local valid=waitFor(.035,id,player,state,target,targetHumanoid,targetRoot)
+   local valid=waitFor(.04,id,player,state,target,targetHumanoid,targetRoot)
    releaseMouse()
    if not valid then return end
    sent=true
-   if not waitFor(hitDelayMs/1000,id,player,state,target,targetHumanoid,targetRoot) then reason="Target unavailable after M1";return end
-   if(root.Position-targetRoot.Position).Magnitude>18 then reason="Target moved before fling";return end
-   for _,part in ipairs(character:GetDescendants()) do if part:IsA("BasePart") then state.collisions[part]=part.CanCollide;part.CanCollide=(part==root) end end
+   if not waitFor(math.max(0.05,hitDelayMs/1000),id,player,state,target,targetHumanoid,targetRoot) then reason="Target unavailable after M1";return end
+   if(root.Position-targetRoot.Position).Magnitude>22 then reason="Target moved before fling";return end
+   -- Keep root collidable for physics interaction; disable other limbs to reduce catch
+   for _,part in ipairs(character:GetDescendants()) do
+    if part:IsA("BasePart") then
+     state.collisions[part]=part.CanCollide
+     part.CanCollide=(part==root)
+    end
+   end
+   humanoid.PlatformStand=true
    local targetOrigin=targetRoot.Position
    local began=os.clock()
+   local duration=math.max(0.2,contactMs/1000)
    report("Fling attempt: "..player.DisplayName)
-   while os.clock()-began<contactMs/1000 do
+   while os.clock()-began<duration do
     if not alive(id,player,state,target,targetHumanoid,targetRoot) then break end
     if UIS:GetFocusedTextBox() then reason="Typing - cancelled";break end
-    local delta=targetRoot.Position-root.Position
-    if delta.Magnitude>18 then break end
-    local direction=Vector3.new(delta.X,0,delta.Z)
-    if direction.Magnitude<.05 then direction=Vector3.new(targetRoot.CFrame.LookVector.X,0,targetRoot.CFrame.LookVector.Z) end
-    if direction.Magnitude<.05 then direction=Vector3.new(0,0,-1) end
-    root.AssemblyAngularVelocity=Vector3.zero
-    root.CFrame=CFrame.new(root.Position)*state.origin.Rotation
-    root.AssemblyLinearVelocity=direction.Unit*120+Vector3.new(0,8,0)
+    local tpos=targetRoot.Position
+    local delta=tpos-root.Position
+    if delta.Magnitude>28 then break end
+    -- Drive into target with spin (classic local fling contact)
+    local toward=(tpos-root.Position)
+    if toward.Magnitude<.01 then toward=targetRoot.CFrame.LookVector end
+    local unit=toward.Unit
+    root.CFrame=CFrame.new(tpos+unit*0.15,tpos+unit)
+    root.AssemblyLinearVelocity=unit*180+Vector3.new(0,40,0)
+    root.AssemblyAngularVelocity=Vector3.new(0,120,0)+unit*40
+    RS.Heartbeat:Wait()
+    if not targetRoot.Parent then break end
+    root.CFrame=CFrame.new(targetRoot.Position)
+    root.AssemblyLinearVelocity=Vector3.new(unit.X*220,95,unit.Z*220)
+    root.AssemblyAngularVelocity=Vector3.new(90,180,90)
     RS.Heartbeat:Wait()
    end
+   humanoid.PlatformStand=state.platform
    displacement=targetRoot.Parent and(targetRoot.Position-targetOrigin).Magnitude or 0
    completed=true
-   reason="Attempt completed"
+   reason=string.format("Attempt completed (moved %.1f studs)",displacement)
   end)
   if snapshot==state then restoreCharacter() end
   if not ok then return false,sent,0,tostring(err) end
@@ -2063,17 +2098,17 @@ end)
 end)
 
 
-;__JJSBoot:run("Auto Block - state-aware animation guard",function()
+;__JJSBoot:run("Auto Parry - state-aware animation guard",function()
  local S={alive=true,on=false,focused=true,range=12,hold=.35,maxAge=.28,gap=.08,last=-math.huge,backend=nil,owner=nil,gen=0,poll=0,scan=nil,links={},hooks={},models={},jobs={},ids={},manual={},meta={},metaCount=0,logs={},logKeys={},dirty=true,logClock=0}
  -- Defaults tuned from community JJS notes: M1 startup ~0.16-0.23s, active ~16ms, frontal ~180deg block.
  -- UI toggles for face / ambiguous / move-pause / own-anim-pause removed; fixed behavior below.
  local autoFace,allowHit,pauseMoving,pauseAction=false,true,false,false
  local lookAhead=40;local blockAttributes={};local filter,sort="Matches","Category"
  local rank={M1=1,Punch=2,Verified=3,Attack=4,Hit=5,Swing=6,Unknown=7,Excluded=8}
- local assets=game:GetService("ReplicatedStorage");local box=card(pages.Combat,"Auto Block / Auto Parry","")
+ local assets=game:GetService("ReplicatedStorage");local box=card(pages.Combat,"Auto Parry","")
  local function listen(signal,fn) local c=connect(signal,fn);table.insert(S.links,c);return c end
  local function label(text,h) return make("TextLabel",box,{Size=UDim2.new(1,0,0,h or 50),BackgroundTransparency=1,Text=text,TextWrapped=true,TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,LayoutOrder=nextOrder(box)+2}) end
- label("Auto Block: holds F on early player/NPC attack animations (JJS). You must face the attacker for the ~180deg guard. F is a block attempt only — not a confirmed perfect block. No auto-face, no guessed remotes/projectiles/counters.",72)
+ label("Auto Parry: holds F on early player/NPC attack animations (JJS). Face the attacker for the ~180deg guard. F is a block attempt — not a confirmed perfect parry. No auto-face, no guessed remotes/projectiles/counters.",72)
  local status=label("OFF",44)
  local function say(text) if S.alive and status.Parent then status.Text=text end end
  local function norm(text) return tostring(text or ""):lower():gsub("[^%w]","") end
@@ -2194,16 +2229,13 @@ end)
    if S.on then for _,t in ipairs(animator:GetPlayingAnimationTracks()) do observe(character,t,true) end end
   end
  end
+ local repaint
  local function setAutoGuard(v)
   cancel();S.on=v;S.dirty=true
-  if v then S.scan={{object=assets,index=0}};for c,h in pairs(S.models) do if c:IsDescendantOf(workspace) then attach(c,h);local a=h:FindFirstChildOfClass("Animator");if a then for _,t in ipairs(a:GetPlayingAnimationTracks()) do observe(c,t,true) end end end end;say("ON: close menu to auto-block/parry. JJS M1 startup window active; logging tracks.") else S.scan=nil;say("OFF: F released; logs retained.") end
-  if repaintBlock then repaintBlock() end
-  if repaintParry then repaintParry() end
+  if v then S.scan={{object=assets,index=0}};for c,h in pairs(S.models) do if c:IsDescendantOf(workspace) then attach(c,h);local a=h:FindFirstChildOfClass("Animator");if a then for _,t in ipairs(a:GetPlayingAnimationTracks()) do observe(c,t,true) end end end end;say("ON: close menu to auto-parry (hold F). JJS M1 startup window active; logging tracks.") else S.scan=nil;say("OFF: F released; logs retained.") end
+  if repaint then repaint() end
  end
- local repaintBlock,repaintParry
- repaintBlock=toggle(box,"Auto Block",function() return S.on end,function(v) setAutoGuard(v) end)
- repaintParry=toggle(box,"Auto Parry",function() return S.on end,function(v) setAutoGuard(v) end)
- local repaint=function() if repaintBlock then repaintBlock() end;if repaintParry then repaintParry() end end
+ repaint=toggle(box,"Auto Parry",function() return S.on end,function(v) setAutoGuard(v) end)
  moduleSlider(box,"Block distance",2,30,12," studs",function() return S.range end,function(v) S.range=v;cancel() end)
  moduleSlider(box,"Block hold",100,600,350," ms",function() return math.floor(S.hold*1000+.5) end,function(v) S.hold=v/1000;cancel() end)
  moduleSlider(box,"Max anim age (startup window)",80,500,280," ms",function() return math.floor(S.maxAge*1000+.5) end,function(v) S.maxAge=v/1000;cancel() end)
@@ -2221,7 +2253,7 @@ end)
  local filterButton,sortButton
  filterButton=button("Log filter: Matches",function() filter=filter=="Matches" and "All" or filter=="All" and "Excluded" or "Matches";filterButton.Text="Log filter: "..filter;S.dirty=true end)
  sortButton=button("Log sort: Category",function() sort=sort=="Category" and "Recent" or sort=="Recent" and "Count" or "Category";sortButton.Text="Log sort: "..sort;S.dirty=true end)
- local logView=label("Enable Auto Block to record observed animation playback.",300);logView.Font=Enum.Font.Code;logView.TextSize=10
+ local logView=label("Enable Auto Parry to record observed animation playback.",300);logView.Font=Enum.Font.Code;logView.TextSize=10
  local exportBox=input("Exported log JSON",100);exportBox.MultiLine=true;exportBox.TextWrapped=true;exportBox.TextYAlignment=Enum.TextYAlignment.Top;exportBox.TextXAlignment=Enum.TextXAlignment.Left
  button("Export full animation log JSON",function() local data={schema="JJSAnimationLog",version=1,entries={}};for _,e in ipairs(S.logs) do table.insert(data.entries,{id=e.id,name=e.name,track=e.track,source=e.source,category=e.category,count=e.count,lastObservedSeconds=e.last}) end;exportBox.Text=game:GetService("HttpService"):JSONEncode(data) end)
  button("Clear animation log",function() S.logs={};S.logKeys={};exportBox.Text="";S.dirty=true end)
@@ -2279,7 +2311,7 @@ end)
      if press() then
       S.owner={character=best.character,track=best.track,humanoid=h,autoRotate=h.AutoRotate,finish=os.clock()+S.hold,minimum=os.clock()+math.min(.12,S.hold)}
       if autoFace then h.AutoRotate=false;face(root,enemy) end
-      busy=true;gui:SetAttribute("AutoParryHolding",true);S.last=os.clock();S.jobs[best.track]=nil;say("Incoming animation -> Auto Block (F) attempted; success unconfirmed.")
+      busy=true;gui:SetAttribute("AutoParryHolding",true);S.last=os.clock();S.jobs[best.track]=nil;say("Incoming animation -> Auto Parry (F) attempted; success unconfirmed.")
      else if autoFace and root.Parent then root.CFrame=CFrame.new(root.Position)*priorRotation end;S.on=false;cancel("No supported F input backend");if repaint then repaint() end end
     end
    end
@@ -3328,7 +3360,8 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
  local fly,expand,antiStun,antiRagdoll=false,false,false,false
  local punchExpand=false
  local speed,boxSize,punchSize=50,8,6
- local savedPunch={}
+ local punchVisuals={} -- client visual only; never resize real character parts (that freezes physics)
+
  local flightHum,flightRoot,oldRotate,oldPlatform,attachment,velocity,orientation
  local focused=true
  local savedBoxes={};local hitboxHumanoids={}
@@ -3391,10 +3424,14 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
  toggle(hitPanel,"Hitbox Expander",function() return expand end,function(v) expand=v;if not v then restoreBoxes() end end)
  moduleSlider(hitPanel,"Enemy part size",2,25,boxSize," studs",function() return boxSize end,function(v) boxSize=v end)
  note(hitPanel,"Local-only: enlarges nearby players'/NPCs' body parts on your client (HRP + torso/arms/head when present). Does not change server hit detection. Sizes restore on disable.")
+ local function clearPunchVisuals()
+  for _,o in pairs(punchVisuals) do pcall(function() o:Destroy() end) end
+  table.clear(punchVisuals)
+ end
  local punchPanel=card(pages.Combat,"Expand Punch Range (Local Only)","")
- toggle(punchPanel,"Expand Punch Range",function() return punchExpand end,function(v) punchExpand=v;if not v then for part in pairs(savedPunch) do local o=savedPunch[part];if part.Parent and o then pcall(function() part.Size=o.size;part.Transparency=o.transparency;part.Massless=o.massless end) end end;table.clear(savedPunch) end end)
- moduleSlider(punchPanel,"Arm / hand size",2,20,punchSize," studs",function() return punchSize end,function(v) punchSize=v end)
- note(punchPanel,"Local-only: enlarges YOUR arms/hands (and slightly HRP) so punch reach is easier to see/judge on this client. Server hit detection is unchanged.")
+ toggle(punchPanel,"Expand Punch Range",function() return punchExpand end,function(v) punchExpand=v;if not v then clearPunchVisuals() end end)
+ moduleSlider(punchPanel,"Visual reach size",2,20,punchSize," studs",function() return punchSize end,function(v) punchSize=v;clearPunchVisuals() end)
+ note(punchPanel,"Local visual only: adds non-colliding reach spheres on your hands/arms. Does NOT resize real character parts (resizing arms/HRP freezes movement). Server hit detection is unchanged.")
  local recovery=card(pages.Player,"Local Recovery","")
  toggle(recovery,"Anti Stun (local recovery attempt)",function() return antiStun end,function(v) antiStun=v end)
  toggle(recovery,"Anti Ragdoll (local recovery attempt)",function() return antiRagdoll end,function(v) antiRagdoll=v end)
@@ -3482,47 +3519,54 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
    local stale={};for part in pairs(savedBoxes) do if not keep[part] then table.insert(stale,part) end end
    for _,part in ipairs(stale) do restoreBox(part) end
   else restoreBoxes() end
-  -- Local punch-range expand on own character
+  -- Local punch-range visuals only (never resize real limbs — that freezes the character)
   if punchExpand and permitted and character and hum and hum.Health>0 then
-   local keep={}
-   local names={"Left Arm","Right Arm","LeftArm","RightArm","LeftUpperArm","RightUpperArm","LeftLowerArm","RightLowerArm","Left Hand","Right Hand","LeftHand","RightHand","HumanoidRootPart"}
-   for _,name in ipairs(names) do
-    local part=character:FindFirstChild(name)
-    if part and part:IsA("BasePart") then
-     keep[part]=true
-     if not savedPunch[part] then savedPunch[part]={size=part.Size,transparency=part.Transparency,massless=part.Massless} end
-     local target
-     if part.Name=="HumanoidRootPart" then
-      target=Vector3.new(math.max(part.Size.X,punchSize*.55),math.max(part.Size.Y,punchSize*.55),math.max(part.Size.Z,punchSize*.55))
-     else
-      target=Vector3.new(punchSize*.45,punchSize,punchSize*.45)
-     end
-     pcall(function()
-      if (part.Size-target).Magnitude>.05 then part.Size=target end
-      part.Transparency=math.min(part.Transparency,.4)
-      part.Massless=true
-     end)
+   local anchors={}
+   for _,name in ipairs({"LeftHand","RightHand","Left Hand","Right Hand","Left Arm","Right Arm","LeftArm","RightArm","LeftLowerArm","RightLowerArm"}) do
+    local p=character:FindFirstChild(name)
+    if p and p:IsA("BasePart") then table.insert(anchors,p) end
+   end
+   if #anchors==0 then
+    local root=character:FindFirstChild("HumanoidRootPart")
+    if root then table.insert(anchors,root) end
+   end
+   for _,anchor in ipairs(anchors) do
+    local key=anchor:GetFullName()
+    local ball=punchVisuals[key]
+    if not ball or not ball.Parent then
+     ball=Instance.new("Part")
+     ball.Name="JJSPunchReachVisual"
+     ball.Shape=Enum.PartType.Ball
+     ball.Material=Enum.Material.ForceField
+     ball.Color=T.acc
+     ball.Transparency=.55
+     ball.Anchored=false
+     ball.CanCollide=false
+     ball.CanTouch=false
+     ball.CanQuery=false
+     ball.Massless=true
+     ball.CastShadow=false
+     ball.Size=Vector3.new(punchSize,punchSize,punchSize)
+     local weld=Instance.new("WeldConstraint")
+     weld.Part0=anchor
+     weld.Part1=ball
+     ball.CFrame=anchor.CFrame
+     ball.Parent=character
+     weld.Parent=ball
+     punchVisuals[key]=ball
+    else
+     local s=Vector3.new(punchSize,punchSize,punchSize)
+     if (ball.Size-s).Magnitude>.05 then ball.Size=s end
     end
    end
-   local stale={};for part in pairs(savedPunch) do if not keep[part] then table.insert(stale,part) end end
-   for _,part in ipairs(stale) do
-    local o=savedPunch[part]
-    if part.Parent and o then pcall(function() part.Size=o.size;part.Transparency=o.transparency;part.Massless=o.massless end) end
-    savedPunch[part]=nil
-   end
-  elseif next(savedPunch) then
-   for part,o in pairs(savedPunch) do
-    if part.Parent and o then pcall(function() part.Size=o.size;part.Transparency=o.transparency;part.Massless=o.massless end) end
-   end
-   table.clear(savedPunch)
+  else
+   clearPunchVisuals()
   end
  end)
  local function cleanup()
-  if not alive then return end;alive=false;fly=false;expand=false;punchExpand=false;up=false;down=false;stopFlight();restoreBoxes()
-  for part,o in pairs(savedPunch) do if part.Parent and o then pcall(function() part.Size=o.size;part.Transparency=o.transparency;part.Massless=o.massless end) end end
-  table.clear(savedPunch)
+  if not alive then return end;alive=false;fly=false;expand=false;punchExpand=false;up=false;down=false;stopFlight();restoreBoxes();clearPunchVisuals()
  end
- connect(LP.CharacterRemoving,function() up=false;down=false;stopFlight();restoreBoxes() end)
+ connect(LP.CharacterRemoving,function() up=false;down=false;stopFlight();restoreBoxes();clearPunchVisuals() end)
  connect(gui.Destroying,cleanup);connect(unload.Activated,cleanup)
 end)
 
@@ -3721,29 +3765,53 @@ end)
 end)
 
 
+
 ;__JJSBoot:run("Triggerbot",function()
  local alive=true
  local on=false
- local range=10
- local fov=70
- local gap=.18
+ local range=12
+ local fov=110
+ local gap=.14
  local last=-math.huge
  local teamCheck=true
+ local includeNPC=true
+ local npcHumans={}
  local p=card(pages.Combat,"Triggerbot","")
  toggle(p,"Triggerbot",function() return on end,function(v) on=v end)
- moduleSlider(p,"Trigger range",3,25,range," studs",function() return range end,function(v) range=v end)
- moduleSlider(p,"Trigger FOV",20,180,fov," deg",function() return fov end,function(v) fov=v end)
- moduleSlider(p,"Click gap",50,500,math.floor(gap*1000+.5)," ms",function() return math.floor(gap*1000+.5) end,function(v) gap=v/1000 end)
+ moduleSlider(p,"Trigger range",3,30,range," studs",function() return range end,function(v) range=v end)
+ moduleSlider(p,"Trigger FOV",30,180,fov," deg",function() return fov end,function(v) fov=v end)
+ moduleSlider(p,"Click gap",40,500,math.floor(gap*1000+.5)," ms",function() return math.floor(gap*1000+.5) end,function(v) gap=v/1000 end)
  toggle(p,"Skip teammates",function() return teamCheck end,function(v) teamCheck=v end)
- make("TextLabel",p,{Size=UDim2.new(1,0,0,56),BackgroundTransparency=1,Text="Auto M1 when a living enemy is inside range and FOV. Local input only; no aimbot lock. Pauses with hub open, typing, or other macros.",TextWrapped=true,TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=nextOrder(p)+2})
+ toggle(p,"Include NPCs",function() return includeNPC end,function(v) includeNPC=v end)
+ make("TextLabel",p,{Size=UDim2.new(1,0,0,64),BackgroundTransparency=1,Text="Auto M1 when a living player or NPC is in range + FOV (camera or character facing). Close the hub to run. Local clicks only.",TextWrapped=true,TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=nextOrder(p)+2})
+ local function registerNPC(o)
+  if o:IsA("Humanoid") then
+   local m=o.Parent
+   if m and m:IsA("Model") and m~=LP.Character and not Players:GetPlayerFromCharacter(m) then npcHumans[o]=m end
+  end
+ end
+ for _,o in ipairs(workspace:GetDescendants()) do registerNPC(o) end
+ connect(workspace.DescendantAdded,registerNPC)
+ connect(workspace.DescendantRemoving,function(o) if o:IsA("Humanoid") then npcHumans[o]=nil end end)
  local function click()
   if not okVIM or not VIM then return false end
   local pos=UIS:GetMouseLocation()
   local inset=game:GetService("GuiService"):GetGuiInset()
   local x,y=pos.X-inset.X,pos.Y-inset.Y
-  local ok1=pcall(function() VIM:SendMouseButtonEvent(x,y,0,true,game,0) end)
-  task.delay(.03,function() pcall(function() if okVIM and VIM then VIM:SendMouseButtonEvent(x,y,0,false,game,0) end end) end)
+  local ok1=pcall(function() VIM:SendMouseButtonEvent(x,y,0,true,game,1) end)
+  if not ok1 then ok1=pcall(function() VIM:SendMouseButtonEvent(x,y,0,true,game,0) end) end
+  task.delay(.04,function()
+   pcall(function() if okVIM and VIM then VIM:SendMouseButtonEvent(x,y,0,false,game,1) end end)
+   pcall(function() if okVIM and VIM then VIM:SendMouseButtonEvent(x,y,0,false,game,0) end end)
+  end)
   return ok1
+ end
+ local function inFOV(fromPos,look,targetPos)
+  local offset=targetPos-fromPos
+  local dist=offset.Magnitude
+  if dist<1.0 or dist>range then return false,dist end
+  local ang=math.deg(math.acos(math.clamp(look.Unit:Dot(offset.Unit),-1,1)))
+  return ang<=fov*.5,dist
  end
  local function enemyInFront()
   local char=LP.Character
@@ -3751,58 +3819,51 @@ end)
   local root=char and char:FindFirstChild("HumanoidRootPart")
   local cam=workspace.CurrentCamera
   if not hum or hum.Health<=0 or not root or not cam then return false end
-  local best,bestDist=nil,range
+  local looks={cam.CFrame.LookVector}
+  local flat=Vector3.new(root.CFrame.LookVector.X,0,root.CFrame.LookVector.Z)
+  if flat.Magnitude>.05 then table.insert(looks,flat.Unit) end
+  local bestDist=range+0.01
+  local found=false
+  local function consider(r)
+   if not r or not r.Parent then return end
+   for _,look in ipairs(looks) do
+    local ok,dist=inFOV(root.Position,look,r.Position)
+    if ok and dist<bestDist then bestDist=dist;found=true end
+   end
+  end
   for _,plr in ipairs(Players:GetPlayers()) do
    if plr~=LP then
-    if teamCheck and not LP.Neutral and not plr.Neutral and LP.Team and LP.Team==plr.Team then
-    else
+    if not (teamCheck and not LP.Neutral and not plr.Neutral and LP.Team and LP.Team==plr.Team) then
      local c=plr.Character
      local h=c and c:FindFirstChildOfClass("Humanoid")
      local r=c and (c:FindFirstChild("HumanoidRootPart") or c:FindFirstChild("UpperTorso") or c:FindFirstChild("Torso"))
-     if h and h.Health>0 and r then
-      local offset=r.Position-root.Position
-      local dist=offset.Magnitude
-      if dist<=bestDist and dist>1.2 then
-       local toTarget=offset.Unit
-       local look=cam.CFrame.LookVector
-       local ang=math.deg(math.acos(math.clamp(look:Dot(toTarget),-1,1)))
-       if ang<=fov*.5 then best=r;bestDist=dist end
-      end
-     end
+     if h and h.Health>0 and r then consider(r) end
     end
    end
   end
-  -- NPCs
-  for _,m in ipairs(workspace:GetChildren()) do
-   if m:IsA("Model") and m~=LP.Character then
-    local h=m:FindFirstChildOfClass("Humanoid")
-    local r=m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("UpperTorso") or m:FindFirstChild("Torso")
-    if h and h.Health>0 and r and not Players:GetPlayerFromCharacter(m) then
-     local offset=r.Position-root.Position
-     local dist=offset.Magnitude
-     if dist<=bestDist and dist>1.2 then
-      local toTarget=offset.Unit
-      local look=cam.CFrame.LookVector
-      local ang=math.deg(math.acos(math.clamp(look:Dot(toTarget),-1,1)))
-      if ang<=fov*.5 then best=r;bestDist=dist end
-     end
-    end
+  if includeNPC then
+   for h,m in pairs(npcHumans) do
+    if h.Parent and m and m.Parent and h.Health>0 then
+     local r=m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("UpperTorso") or m:FindFirstChild("Torso")
+     if r then consider(r) end
+    else npcHumans[h]=nil end
    end
   end
-  return best~=nil
+  return found
  end
  connect(RS.Heartbeat,function()
-  if not alive or not on or not scriptsActive() or main.Visible or UIS:GetFocusedTextBox() or busy or todoBusy or tripleJumpBusy or manualSequenceBusy then return end
-  if gui:GetAttribute("ComboStudioBusy") or gui:GetAttribute("AutoParryHolding") then return end
+  if not alive or not on then return end
+  if not scriptsActive() or main.Visible or UIS:GetFocusedTextBox() then return end
+  if busy or todoBusy or tripleJumpBusy or manualSequenceBusy then return end
+  if gui:GetAttribute("ComboStudioBusy") or gui:GetAttribute("AutoParryHolding") or gui:GetAttribute("FlingSequenceActive") then return end
   if os.clock()-last<gap then return end
   if enemyInFront() then
    if click() then last=os.clock() end
   end
  end)
- local function cleanup() alive=false;on=false end
+ local function cleanup() alive=false;on=false;table.clear(npcHumans) end
  connect(gui.Destroying,cleanup);connect(unload.Activated,cleanup)
 end)
-
 
 ;__JJSBoot:run("Dash HUD",function()
  local alive=true
@@ -4126,7 +4187,7 @@ end)
 do
  local orderMap={
   Macros={"Follow-up","Todo macro","Copied sequence","Blackflash Chain V2","Blackflash Chain V3","V2 / V3 Route Calculator","Combo Studio"},
-  Combat={"Auto Block / Auto Parry","Triggerbot","Hitbox Expander (Local Only)","Expand Punch Range (Local Only)","Range Expander (Local Preview)","Cursed Partners Blackflash","Fling Kill All","Remote Train Activation","Auto Counter"},
+  Combat={"Auto Parry","Triggerbot","Hitbox Expander (Local Only)","Expand Punch Range (Local Only)","Range Expander (Local Preview)","Cursed Partners Blackflash","Fling Kill All","Remote Train Activation","Auto Counter"},
   Targeting={"Camera assist and pull"},
   Movement={"Fly","Follow Behind - Automatic Path Jumps","Speed","Build Speed","Jump Power","Loop Teleport Behind","Low Gravity - Local","Slow Spin","Domain Invade"},
   Player={"Invisible (Local Only)","Local Recovery","Player Scanner","Serversided Box Morph"},
