@@ -255,7 +255,8 @@ make("Frame",top,{Size=UDim2.new(1,0,0,14),Position=UDim2.new(0,0,1,-14),Backgro
 make("TextLabel",top,{Size=UDim2.fromOffset(225,44),Position=UDim2.fromOffset(16,0),BackgroundTransparency=1,Text="JJS HUB v2.20",TextColor3=T.txt,Font=Enum.Font.GothamBold,TextSize=15,TextXAlignment=Enum.TextXAlignment.Left})
 local badge=make("TextLabel",top,{Size=UDim2.fromOffset(48,18),Position=UDim2.new(0,220,.5,-9),BackgroundColor3=T.p2,Text="325",TextColor3=T.acc,Font=Enum.Font.GothamBold,TextSize=11}); corner(badge,4)
 local DISCORD_URL="https://discord.gg/RrQQh6B4nP"
-local discordBtn=make("TextButton",top,{Size=UDim2.fromOffset(86,28),Position=UDim2.new(1,-130,.5,-14),BackgroundColor3=Color3.fromRGB(88,101,242),Text="Discord",TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=12}); corner(discordBtn,6)
+local discordBtn=make("TextButton",top,{Size=UDim2.fromOffset(86,28),Position=UDim2.new(1,-200,.5,-14),BackgroundColor3=Color3.fromRGB(88,101,242),Text="Discord",TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=12}); corner(discordBtn,6)
+local unloadTop=make("TextButton",top,{Name="UnloadTop",Size=UDim2.fromOffset(64,28),Position=UDim2.new(1,-108,.5,-14),BackgroundColor3=Color3.fromRGB(130,45,65),Text="Unload",TextColor3=T.txt,Font=Enum.Font.GothamBold,TextSize=11}); corner(unloadTop,6)
 local close=make("TextButton",top,{Size=UDim2.fromOffset(28,28),Position=UDim2.new(1,-36,.5,-14),BackgroundColor3=T.p2,Text="x",TextColor3=T.dim,Font=Enum.Font.GothamBold,TextSize=16}); corner(close,6)
 local function showLinkCopiedToast()
  local toast=make("TextLabel",gui,{
@@ -402,8 +403,8 @@ local pages,buttons={},{}
 local cats={{"Macros",""},{"Combat",""},{"Targeting",""},{"Movement",""},{"Player",""},{"ESP",""},{"Visuals",""},{"Animations",""},{"Settings",""}}
 for i,cat in ipairs(cats) do
  local name,description=cat[1],cat[2]
- local groupStart={Macros="MAIN",Combat="COMBAT",Movement="MOVEMENT",Visuals="VISUALS"}
- if groupStart[name] then make("TextLabel",side,{Size=UDim2.new(1,0,0,18),BackgroundTransparency=1,Text="~ "..groupStart[name].." ~",TextColor3=T.mut,Font=Enum.Font.GothamBold,TextSize=10,LayoutOrder=i*10-5}) end
+ local groupStart={Macros="MACROS",Combat="COMBAT",Targeting="TARGET",Movement="MOVE",Player="PLAYER",ESP="ESP",Visuals="FX",Animations="ANIMS",Settings="SYS"}
+ if groupStart[name] then make("TextLabel",side,{Size=UDim2.new(1,0,0,16),BackgroundTransparency=1,Text="~ "..groupStart[name].." ~",TextColor3=T.mut,Font=Enum.Font.GothamBold,TextSize=9,LayoutOrder=i*10-5}) end
  local b=make("TextButton",side,{Size=UDim2.new(1,0,0,32),BackgroundColor3=T.p2,BackgroundTransparency=i==1 and 0 or 1,Text=name,TextColor3=i==1 and T.acc or T.dim,Font=Enum.Font.GothamMedium,TextSize=13,LayoutOrder=i*10}); corner(b,8); buttons[name]=b
  local p=make("ScrollingFrame",content,{Size=UDim2.new(1,0,1,-40),Position=UDim2.fromOffset(0,40),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,AutomaticCanvasSize=Enum.AutomaticSize.Y,CanvasSize=UDim2.new(),Visible=i==1})
  make("UIPadding",p,{PaddingLeft=UDim.new(0,14),PaddingRight=UDim.new(0,14),PaddingTop=UDim.new(0,4),PaddingBottom=UDim.new(0,16)})
@@ -435,7 +436,14 @@ local function applyResponsiveLayout()
  for name,b in pairs(buttons) do b.Size=UDim2.new(1,0,0,touch and 44 or 32);b.TextSize=touch and 12 or 13;b.TextWrapped=touch;b.BackgroundColor3=T.p2;b.BackgroundTransparency=pages[name] and pages[name].Visible and 0 or 1;b.TextColor3=pages[name] and pages[name].Visible and T.acc or T.dim end
  for _,o in ipairs(side:GetChildren()) do if o:IsA("TextLabel") then o.Visible=not touch end end
  content.Position=UDim2.fromOffset(navW,topH);content.Size=UDim2.new(1,-navW,1,-topH);title.TextSize=touch and 14 or 18;title.Position=UDim2.fromOffset(touch and 8 or 16,7)
- discordBtn.Visible=not touch;badge.Visible=not touch;close.Size=UDim2.fromOffset(touch and 44 or 28,touch and 44 or 28);close.Position=UDim2.new(1,touch and -48 or -36,.5,touch and -22 or -14);close.TextSize=touch and 18 or 16
+ discordBtn.Visible=not touch;badge.Visible=not touch
+ if unloadTop then
+  unloadTop.Visible=true
+  unloadTop.Size=UDim2.fromOffset(touch and 64 or 64,touch and 36 or 28)
+  unloadTop.Position=UDim2.new(1,touch and -120 or -108,.5,touch and -18 or -14)
+  unloadTop.TextSize=touch and 12 or 11
+ end
+ close.Size=UDim2.fromOffset(touch and 44 or 28,touch and 44 or 28);close.Position=UDim2.new(1,touch and -48 or -36,.5,touch and -22 or -14);close.TextSize=touch and 18 or 16
  for _,o in ipairs(top:GetChildren()) do if o:IsA("TextLabel") and o.Text:find("JJS HUB",1,true) then o.Size=UDim2.new(1,touch and -104 or -280,1,0);o.TextSize=touch and 14 or 15 end;if o:IsA("TextLabel") and (o.Text=="PC" or o.Text=="MOBILE") then o.Visible=not touch end;if o.Name=="DeviceIcon" then o.Position=touch and UDim2.new(1,-94,.5,-12) or UDim2.fromOffset(290,9) end end
  if keyPage and keyPage.Parent then keyPage.AnchorPoint=Vector2.new(.5,.5);keyPage.Position=UDim2.fromScale(.5,.5);keyPage.Size=UDim2.fromOffset(math.min(420,v.X-24),math.min(340,v.Y-32));local ks=keyPage:FindFirstChildOfClass("UIScale");if ks then ks.Scale=1 end end
  if __JJSBoot.features then for _,r in ipairs(__JJSBoot.features) do __JJSBoot.refresh(r) end end
@@ -620,8 +628,10 @@ toggle(tc,"Perfect Clap",function() return perfectClapEnabled end,function(v) pe
 moduleSlider(tc,"Clap delay",50,1000,perfectClapDelay," ms",function() return perfectClapDelay end,function(v) perfectClapDelay=v end)
 local sc=card(pages.Settings,"Session","")
 __JJSBoot.bind(sc,"Tooltips",function() return tooltipLayer.Enabled end,function(v) tooltipLayer.Enabled=v;if not v then hideTooltip() end end)
-local status=make("TextLabel",sc,{Size=UDim2.new(1,0,0,42),BackgroundTransparency=1,Text="Ready",TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=3})
-local unload=make("TextButton",sc,{Size=UDim2.new(1,0,0,30),BackgroundColor3=Color3.fromRGB(130,45,65),Text="Unload",TextColor3=T.txt,Font=Enum.Font.GothamBold,TextSize=12,LayoutOrder=4}); corner(unload,8)
+local status=make("TextLabel",sc,{Size=UDim2.new(1,0,0,36),BackgroundTransparency=1,Text="Hub running. Unload stops all macros, ESP, HUD overlays, and destroys this UI.",TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=3})
+local unload=make("TextButton",sc,{Size=UDim2.new(1,0,0,44),BackgroundColor3=Color3.fromRGB(130,45,65),Text="Unload Hub",TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=14,LayoutOrder=4}); corner(unload,8)
+unload:SetAttribute("Tooltip","Fully stops JJS HUB: macros, ESP, dash HUD, connections, and GUI.")
+make("TextLabel",sc,{Size=UDim2.new(1,0,0,28),BackgroundTransparency=1,Text="Also available as Unload on the top bar.",TextColor3=T.mut,Font=Enum.Font.Gotham,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=5})
 local okVIM,VIM=pcall(function() return game:GetService("VirtualInputManager") end)
 local function todoWait(seconds)
  local finish=os.clock()+seconds
@@ -2300,14 +2310,15 @@ end)
 
 ;__JJSBoot:run("Mobile action dock",function()
  local alive=true;local drag=nil;local elapsed=0;local raw=__JJSBoot.rawMake
- local dock=raw("Frame",gui,{Name="TouchActionDock",Size=UDim2.fromOffset(84,232),AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,-12,.45,0),BackgroundColor3=T.panel,BorderSizePixel=0,Visible=false,ZIndex=120});corner(dock,8)
+ local dock=raw("Frame",gui,{Name="TouchActionDock",Size=UDim2.fromOffset(84,280),AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,-12,.45,0),BackgroundColor3=T.panel,BorderSizePixel=0,Visible=false,ZIndex=120});corner(dock,8)
  local handle=raw("TextLabel",dock,{Size=UDim2.new(1,0,0,32),Text="DRAG",BackgroundTransparency=1,TextColor3=T.dim,Font=Enum.Font.GothamBold,TextSize=12,Active=true,ZIndex=121})
  local function available() return running and hubUnlocked and __JJSBoot.ready and not UIS:GetFocusedTextBox() end
  local actions={
   {"BFC / 3",function() if not available() then return end;main.Visible=false;if blackflashV2Trigger and blackflashV2Trigger() then return end;if busy or manualSequenceBusy then return end;lastThreeTime=os.clock();if todoEnabled then task.spawn(runTodo);return end;task.spawn(run);if chainEnabled and os.clock()>=chainCooldownUntil then task.spawn(runChain) end end},
   {"CLAP",function() if available() and perfectClapEnabled then task.spawn(runPerfectClap) end end},
   {"TRIPLE JUMP",function() if available() and tripleJumpEnabled then task.spawn(runTripleJump) end end},
-  {"STOP MACROS",function() enabled=false;chainEnabled=false;todoEnabled=false;perfectClapEnabled=false;tripleJumpEnabled=false;clapState.generation+=1;clapState.pending=false;release();if __JJSBoot.stopParry then pcall(__JJSBoot.stopParry) end;for _,cancel in ipairs(__JJSBoot.cancels) do pcall(cancel) end end}
+  {"STOP MACROS",function() enabled=false;chainEnabled=false;todoEnabled=false;perfectClapEnabled=false;tripleJumpEnabled=false;clapState.generation+=1;clapState.pending=false;release();if __JJSBoot.stopParry then pcall(__JJSBoot.stopParry) end;for _,cancel in ipairs(__JJSBoot.cancels) do pcall(cancel) end end},
+  {"UNLOAD HUB",function() if __JJSBoot.unloadHub then pcall(__JJSBoot.unloadHub) elseif unload then pcall(function() unload:Activate() end) end end}
  }
  local buttonsDock={}
  for i,spec in ipairs(actions) do local name,fn=spec[1],spec[2];local b=raw("TextButton",dock,{Size=UDim2.new(1,-8,0,44),Position=UDim2.fromOffset(4,34+(i-1)*48),Text=name,TextWrapped=true,TextColor3=T.txt,BackgroundColor3=T.p2,Font=Enum.Font.GothamBold,TextSize=12,ZIndex=121});corner(b,6);buttonsDock[i]=b;connect(b.Activated,function() local ok,e=pcall(fn);if not ok then warn("Touch: "..tostring(e)) end end) end
@@ -2316,7 +2327,7 @@ end)
  connect(UIS.InputEnded,function(i) if drag and drag.input==i then drag=nil end end);connect(UIS.WindowFocusReleased,function() drag=nil end)
  connect(RS.Heartbeat,function(dt)
   if not alive then return end;elapsed+=dt;if elapsed<.1 then return end;elapsed=0;dock.Visible=dock:GetAttribute("UserEnabled")~=false and UIS.TouchEnabled and hubUnlocked and __JJSBoot.ready and not main.Visible
-  local camera=workspace.CurrentCamera;if not camera then return end;local v=camera.ViewportSize;local short=v.Y<300;dock.Size=short and UDim2.fromOffset(168,132) or UDim2.fromOffset(84,232)
+  local camera=workspace.CurrentCamera;if not camera then return end;local v=camera.ViewportSize;local short=v.Y<300;dock.Size=short and UDim2.fromOffset(168,160) or UDim2.fromOffset(84,280)
   for i,b in ipairs(buttonsDock) do b.Size=short and UDim2.fromOffset(76,44) or UDim2.new(1,-8,0,44);b.Position=short and UDim2.fromOffset(4+((i-1)%2)*84,34+math.floor((i-1)/2)*48) or UDim2.fromOffset(4,34+(i-1)*48) end
   for _,frame in ipairs({main,dock,reopen}) do if frame.Parent then local a=frame.AbsolutePosition;local z=frame.AbsoluteSize;local dx=math.clamp(a.X,8,math.max(8,v.X-z.X-8))-a.X;local dy=math.clamp(a.Y,8,math.max(8,v.Y-z.Y-16))-a.Y;if math.abs(dx)>.5 or math.abs(dy)>.5 then local p=frame.Position;frame.Position=UDim2.new(p.X.Scale,p.X.Offset+dx,p.Y.Scale,p.Y.Offset+dy) end end end
  end)
@@ -2356,8 +2367,10 @@ local function cleanup()
  destroyBackdrop() -- always unload Halloween background with the hub
  if gui.Parent then gui:Destroy() end
 end
+__JJSBoot.unloadHub=cleanup
 connect(gui.Destroying,cleanup)
 connect(unload.Activated,cleanup)
+if unloadTop then connect(unloadTop.Activated,cleanup) end
 connect(close.Activated,function()
  main.Visible=false
  reopen.Visible=hubUnlocked
@@ -3965,6 +3978,183 @@ end)
  connect(gui.Destroying,cleanup);connect(unload.Activated,cleanup)
 end)
 
+
+
+
+;__JJSBoot:run("Stun Status ESP",function()
+ -- JJS: stun = upright action lock after hit (~0.75s on M1); ragdoll = knockdown/physics (separate from stun).
+ -- Client-side only: Humanoid state + hit-reaction anim names. Not a server stun flag.
+ local alive=true
+ local on=false
+ local maxDist=200
+ local showSelf=false
+ local teamSkip=true
+ local raw=__JJSBoot.rawMake
+ local screen=raw("ScreenGui",PG,{Name="JJSStunStatusESP",ResetOnSpawn=false,IgnoreGuiInset=true,DisplayOrder=996})
+ local records={}
+ local hitNames={"hitreaction","hitreact","hitstun","gethit","takinghit","receivedhit","hurt","flinch","stagger","stun","ragdoll","knockback","knockdown","landedhit","damage"}
+ local function norm(s) return tostring(s or ""):lower():gsub("[^%w]","") end
+ local function isHitAnim(track)
+  if not track or not track.IsPlaying or track.Speed<=0 then return false end
+  local names={track.Name}
+  local anim=track.Animation
+  if anim then table.insert(names,anim.Name) end
+  for _,n0 in ipairs(names) do
+   local n=norm(n0)
+   for _,bad in ipairs(hitNames) do if n:find(bad,1,true) then return true end end
+  end
+  return false
+ end
+ local function isStunned(char,hum)
+  if not hum or hum.Health<=0 then return false,"down" end
+  local st=hum:GetState()
+  if hum.PlatformStand then return true,"platform" end
+  if st==Enum.HumanoidStateType.Ragdoll then return true,"ragdoll" end
+  if st==Enum.HumanoidStateType.FallingDown then return true,"falling" end
+  if st==Enum.HumanoidStateType.Physics then return true,"physics" end
+  if st==Enum.HumanoidStateType.Dead then return false,"dead" end
+  local animator=hum:FindFirstChildOfClass("Animator") or (char and char:FindFirstChildOfClass("Animator"))
+  if animator then
+   for _,t in ipairs(animator:GetPlayingAnimationTracks()) do
+    if isHitAnim(t) then return true,"hitstun" end
+   end
+  end
+  return false,"free"
+ end
+ local function ensure(player)
+  local r=records[player]
+  if r then return r end
+  local folder=raw("Folder",screen,{Name="Stun_"..player.UserId})
+  local box=raw("Frame",folder,{Name="Box",BackgroundTransparency=.72,BorderSizePixel=0,Visible=false})
+  local stroke=Instance.new("UIStroke");stroke.Thickness=2;stroke.Parent=box
+  local tag=raw("TextLabel",folder,{Name="Tag",BackgroundTransparency=1,Size=UDim2.fromOffset(90,16),Font=Enum.Font.GothamBold,TextSize=11,TextStrokeTransparency=.4,Visible=false,TextXAlignment=Enum.TextXAlignment.Center})
+  r={folder=folder,box=box,stroke=stroke,tag=tag,character=nil}
+  records[player]=r
+  return r
+ end
+ local function clearPlayer(player)
+  local r=records[player]
+  if r then r.folder:Destroy();records[player]=nil end
+ end
+ local panel=card(pages.ESP,"Stun Status (Special)","")
+ -- Special module chrome: blue outline frame
+ local special=make("Frame",panel,{
+  Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundColor3=Color3.fromRGB(18,28,48),
+  BorderSizePixel=0,LayoutOrder=nextOrder(panel)+1
+ })
+ corner(special,8)
+ local blue=Instance.new("UIStroke");blue.Name="SpecialBlueOutline";blue.Color=Color3.fromRGB(64,156,255);blue.Thickness=2.5;blue.Parent=special
+ make("TextLabel",special,{
+  Size=UDim2.new(1,-16,0,18),Position=UDim2.fromOffset(8,8),BackgroundTransparency=1,
+  Text="SPECIAL MODULE",TextColor3=Color3.fromRGB(120,190,255),Font=Enum.Font.GothamBold,TextSize=11,
+  TextXAlignment=Enum.TextXAlignment.Left
+ })
+ make("TextLabel",special,{
+  Size=UDim2.new(1,-16,0,64),Position=UDim2.fromOffset(8,28),BackgroundTransparency=1,TextWrapped=true,
+  Text="RED box = stunned or ragdolled (JJS: upright M1 stun ~0.75s, or ragdoll / physics / falling / hit-reaction anim). GREEN box = free to act. Client estimate only — not a server stun flag.",
+  TextColor3=Color3.fromRGB(180,200,230),Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left
+ })
+ make("Frame",special,{Size=UDim2.new(1,0,0,8),BackgroundTransparency=1}) -- bottom pad
+ toggle(panel,"Stun Status ESP",function() return on end,function(v) on=v;if not v then for _,r in pairs(records) do r.box.Visible=false;r.tag.Visible=false end end end)
+ moduleSlider(panel,"Max distance",50,500,maxDist," studs",function() return maxDist end,function(v) maxDist=v end)
+ toggle(panel,"Skip teammates",function() return teamSkip end,function(v) teamSkip=v end)
+ toggle(panel,"Show self",function() return showSelf end,function(v) showSelf=v end)
+ connect(Players.PlayerRemoving,clearPlayer)
+ local elapsed=0
+ connect(RS.RenderStepped,function(dt)
+  if not alive then return end
+  elapsed+=dt;if elapsed<1/30 then return end;elapsed=0
+  local cam=workspace.CurrentCamera
+  local own=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+  local active=on and scriptsActive()
+  for _,player in ipairs(Players:GetPlayers()) do
+   if player==LP and not showSelf then
+    local r=records[player];if r then r.box.Visible=false;r.tag.Visible=false end
+   else
+    local skip=teamSkip and player~=LP and not LP.Neutral and not player.Neutral and LP.Team and LP.Team==player.Team
+    local char=player.Character
+    local hum=char and char:FindFirstChildOfClass("Humanoid")
+    local root=char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso"))
+    local r=ensure(player)
+    local ok=active and not skip and root and hum and hum.Health>0 and own and (root.Position-own.Position).Magnitude<=maxDist
+    if not ok then r.box.Visible=false;r.tag.Visible=false
+    else
+     local stunned,reason=isStunned(char,hum)
+     local color=stunned and Color3.fromRGB(220,48,48) or Color3.fromRGB(64,210,96)
+     local label=stunned and ("STUN "..string.upper(tostring(reason))) or "FREE"
+     -- Bounding box from character
+     local cf,size
+     local okbb,cf0,size0=pcall(function() return char:GetBoundingBox() end)
+     if okbb and typeof(cf0)=="CFrame" then cf,size=cf0,size0 else cf,size=root.CFrame,Vector3.new(4,6,2) end
+     local corners={}
+     local hx,hy,hz=size.X*.5,size.Y*.5,size.Z*.5
+     local any,minX,minY,maxX,maxY=false,math.huge,math.huge,-math.huge,-math.huge
+     for _,ox in ipairs({-hx,hx}) do for _,oy in ipairs({-hy,hy}) do for _,oz in ipairs({-hz,hz}) do
+      local p,onScreen=cam:WorldToViewportPoint(cf:PointToWorldSpace(Vector3.new(ox,oy,oz)))
+      if p.Z>.1 then
+       any=true
+       minX=math.min(minX,p.X);minY=math.min(minY,p.Y);maxX=math.max(maxX,p.X);maxY=math.max(maxY,p.Y)
+      end
+     end end end
+     if any then
+      local pad=3
+      r.box.Position=UDim2.fromOffset(minX-pad,minY-pad)
+      r.box.Size=UDim2.fromOffset(math.max(8,maxX-minX+pad*2),math.max(8,maxY-minY+pad*2))
+      r.box.BackgroundColor3=color
+      r.stroke.Color=color
+      r.box.Visible=true
+      r.tag.Text=label
+      r.tag.TextColor3=color
+      r.tag.Position=UDim2.fromOffset((minX+maxX)*.5-45,minY-18)
+      r.tag.Visible=true
+     else r.box.Visible=false;r.tag.Visible=false end
+    end
+   end
+  end
+ end)
+ local function cleanup()
+  if not alive then return end;alive=false;on=false
+  for _,r in pairs(records) do r.folder:Destroy() end
+  table.clear(records)
+  if screen then screen:Destroy() end
+ end
+ connect(gui.Destroying,cleanup);connect(unload.Activated,cleanup)
+end)
+
+
+-- Organize module cards inside each category page (stable LayoutOrder)
+do
+ local orderMap={
+  Macros={"Follow-up","Todo macro","Copied sequence","Blackflash Chain V2","Blackflash Chain V3","V2 / V3 Route Calculator","Combo Studio"},
+  Combat={"Auto Block / Auto Parry","Triggerbot","Hitbox Expander (Local Only)","Expand Punch Range (Local Only)","Range Expander (Local Preview)","Cursed Partners Blackflash","Fling Kill All","Remote Train Activation","Auto Counter"},
+  Targeting={"Camera assist and pull"},
+  Movement={"Fly","Follow Behind - Automatic Path Jumps","Speed","Build Speed","Jump Power","Loop Teleport Behind","Low Gravity - Local","Slow Spin","Domain Invade"},
+  Player={"Invisible (Local Only)","Local Recovery","Player Scanner","Serversided Box Morph"},
+  ESP={"Stun Status (Special)","Player ESP","Advanced ESP Distance","2D Boxes","Corner Boxes","Skeleton ESP","Skeleton Overlay","Tracers","Chams","Dropped Items ESP","Items and Non-player Dummies","Build Logic Visibility"},
+  Visuals={"Dash HUD","Popups, voices and kill finisher","Decorative Background"},
+  Animations={"Cosmetic Animation Previews"},
+  Settings={"Session","v2.20 Device and Loading","Mobile compatibility","Device and Loading"},
+ }
+ local function organizePages()
+  for pageName,order in pairs(orderMap) do
+   local page=pages[pageName]
+   if page then
+    local rank={}
+    for i,title in ipairs(order) do rank[title]=i end
+    for _,child in ipairs(page:GetChildren()) do
+     if child:IsA("Frame") and child.Name:find("Group_",1,true)==1 then
+      local title=child.Name:gsub("^Group_","")
+      local r=rank[title]
+      if r then child.LayoutOrder=r
+      else child.LayoutOrder=(child.LayoutOrder or 0)+500 end
+     end
+    end
+   end
+  end
+ end
+ organizePages()
+ task.defer(organizePages)
+end
 
 applyResponsiveLayout()
 end,function(e) return debug.traceback(tostring(e),2) end)
