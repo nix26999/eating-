@@ -2053,16 +2053,17 @@ end)
 end)
 
 
-;__JJSBoot:run("Auto Parry - state-aware animation guard",function()
+;__JJSBoot:run("Auto Block - state-aware animation guard",function()
  local S={alive=true,on=false,focused=true,range=12,hold=.35,maxAge=.28,gap=.08,last=-math.huge,backend=nil,owner=nil,gen=0,poll=0,scan=nil,links={},hooks={},models={},jobs={},ids={},manual={},meta={},metaCount=0,logs={},logKeys={},dirty=true,logClock=0}
  -- Defaults tuned from community JJS notes: M1 startup ~0.16-0.23s, active ~16ms, frontal ~180deg block.
- local autoFace,allowHit,pauseMoving,pauseAction=true,false,false,false
+ -- UI toggles for face / ambiguous / move-pause / own-anim-pause removed; fixed behavior below.
+ local autoFace,allowHit,pauseMoving,pauseAction=false,true,false,false
  local lookAhead=40;local blockAttributes={};local filter,sort="Matches","Category"
  local rank={M1=1,Punch=2,Verified=3,Attack=4,Hit=5,Swing=6,Unknown=7,Excluded=8}
- local assets=game:GetService("ReplicatedStorage");local box=card(pages.Combat,"Auto Parry","")
+ local assets=game:GetService("ReplicatedStorage");local box=card(pages.Combat,"Auto Block","")
  local function listen(signal,fn) local c=connect(signal,fn);table.insert(S.links,c);return c end
  local function label(text,h) return make("TextLabel",box,{Size=UDim2.new(1,0,0,h or 50),BackgroundTransparency=1,Text=text,TextWrapped=true,TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,LayoutOrder=nextOrder(box)+2}) end
- label("Player / NPC animation guard for JJS. Holds F (block) on early attack anims. 180deg frontal guard; auto-face ON by default. F is an attempt — not a confirmed perfect block/parry. No guessed remotes, projectiles, or auto-counters.",72)
+ label("Auto Block: holds F on early player/NPC attack animations (JJS). You must face the attacker for the ~180deg guard. F is a block attempt only — not a confirmed perfect block. No auto-face, no guessed remotes/projectiles/counters.",72)
  local status=label("OFF",44)
  local function say(text) if S.alive and status.Parent then status.Text=text end end
  local function norm(text) return tostring(text or ""):lower():gsub("[^%w]","") end
@@ -2183,19 +2184,15 @@ end)
    if S.on then for _,t in ipairs(animator:GetPlayingAnimationTracks()) do observe(character,t,true) end end
   end
  end
- local repaint=toggle(box,"Auto Parry",function() return S.on end,function(v)
+ local repaint=toggle(box,"Auto Block",function() return S.on end,function(v)
   cancel();S.on=v;S.dirty=true
-  if v then S.scan={{object=assets,index=0}};for c,h in pairs(S.models) do if c:IsDescendantOf(workspace) then attach(c,h);local a=h:FindFirstChildOfClass("Animator");if a then for _,t in ipairs(a:GetPlayingAnimationTracks()) do observe(c,t,true) end end end end;say("ON: close menu to guard. JJS M1 startup window active; logging tracks.") else S.scan=nil;say("OFF: F released; logs retained.") end
+  if v then S.scan={{object=assets,index=0}};for c,h in pairs(S.models) do if c:IsDescendantOf(workspace) then attach(c,h);local a=h:FindFirstChildOfClass("Animator");if a then for _,t in ipairs(a:GetPlayingAnimationTracks()) do observe(c,t,true) end end end end;say("ON: close menu to auto-block. JJS M1 startup window active; logging tracks.") else S.scan=nil;say("OFF: F released; logs retained.") end
  end)
- toggle(box,"Face incoming attacker",function() return autoFace end,function(v) autoFace=v;cancel() end)
- toggle(box,"Allow ambiguous Hit / Swing matches",function() return allowHit end,function(v) allowHit=v;cancel();S.dirty=true end)
- toggle(box,"Pause when manually moving",function() return pauseMoving end,function(v) pauseMoving=v;cancel() end)
- toggle(box,"Pause during own Action animations",function() return pauseAction end,function(v) pauseAction=v;cancel() end)
  moduleSlider(box,"Block distance",2,30,12," studs",function() return S.range end,function(v) S.range=v;cancel() end)
  moduleSlider(box,"Block hold",100,600,350," ms",function() return math.floor(S.hold*1000+.5) end,function(v) S.hold=v/1000;cancel() end)
  moduleSlider(box,"Max anim age (startup window)",80,500,280," ms",function() return math.floor(S.maxAge*1000+.5) end,function(v) S.maxAge=v/1000;cancel() end)
  moduleSlider(box,"Melee motion lookahead",0,100,40," ms",function() return lookAhead end,function(v) lookAhead=v;cancel() end)
- label("JJS-tuned defaults: hold 350ms, maxAge 280ms (M1 startup ~160-230ms), frontal face ON, movement pause OFF. Lookahead is a constant-velocity proximity estimate only — not verified hit frames. F is a block attempt; perfect-block windows are move-specific and not claimed.",84)
+ label("JJS-tuned defaults: hold 350ms, maxAge 280ms (M1 startup ~160-230ms). Hit/Swing labels accepted. No auto-face, no move pause, no own-anim pause. Lookahead is proximity-only — not verified hit frames. Face the attacker yourself for frontal block.",84)
  local function input(placeholder,height)
   return make("TextBox",box,{Size=UDim2.new(1,0,0,height or 38),Text="",PlaceholderText=placeholder,ClearTextOnFocus=false,BackgroundColor3=T.p2,TextColor3=T.txt,Font=Enum.Font.Code,TextSize=11,LayoutOrder=nextOrder(box)+2})
  end
@@ -2208,7 +2205,7 @@ end)
  local filterButton,sortButton
  filterButton=button("Log filter: Matches",function() filter=filter=="Matches" and "All" or filter=="All" and "Excluded" or "Matches";filterButton.Text="Log filter: "..filter;S.dirty=true end)
  sortButton=button("Log sort: Category",function() sort=sort=="Category" and "Recent" or sort=="Recent" and "Count" or "Category";sortButton.Text="Log sort: "..sort;S.dirty=true end)
- local logView=label("Enable Auto Parry to record observed animation playback.",300);logView.Font=Enum.Font.Code;logView.TextSize=10
+ local logView=label("Enable Auto Block to record observed animation playback.",300);logView.Font=Enum.Font.Code;logView.TextSize=10
  local exportBox=input("Exported log JSON",100);exportBox.MultiLine=true;exportBox.TextWrapped=true;exportBox.TextYAlignment=Enum.TextYAlignment.Top;exportBox.TextXAlignment=Enum.TextXAlignment.Left
  button("Export full animation log JSON",function() local data={schema="JJSAnimationLog",version=1,entries={}};for _,e in ipairs(S.logs) do table.insert(data.entries,{id=e.id,name=e.name,track=e.track,source=e.source,category=e.category,count=e.count,lastObservedSeconds=e.last}) end;exportBox.Text=game:GetService("HttpService"):JSONEncode(data) end)
  button("Clear animation log",function() S.logs={};S.logKeys={};exportBox.Text="";S.dirty=true end)
@@ -2266,7 +2263,7 @@ end)
      if press() then
       S.owner={character=best.character,track=best.track,humanoid=h,autoRotate=h.AutoRotate,finish=os.clock()+S.hold,minimum=os.clock()+math.min(.12,S.hold)}
       if autoFace then h.AutoRotate=false;face(root,enemy) end
-      busy=true;gui:SetAttribute("AutoParryHolding",true);S.last=os.clock();S.jobs[best.track]=nil;say("Incoming animation -> F attempted; success unconfirmed.")
+      busy=true;gui:SetAttribute("AutoParryHolding",true);S.last=os.clock();S.jobs[best.track]=nil;say("Incoming animation -> Auto Block (F) attempted; success unconfirmed.")
      else if autoFace and root.Parent then root.CFrame=CFrame.new(root.Position)*priorRotation end;S.on=false;cancel("No supported F input backend");if repaint then repaint() end end
     end
    end
@@ -3328,14 +3325,33 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
   if flightRoot and flightRoot.Parent then flightRoot.AssemblyLinearVelocity=Vector3.zero;flightRoot.AssemblyAngularVelocity=Vector3.zero end
   flightHum=nil;flightRoot=nil
  end
- local function restoreBox(root)
-  local original=savedBoxes[root];if not original then return end
-  if root.Parent then pcall(function() root.Size=original.size;root.Transparency=original.transparency;root.CanCollide=original.collide end) end
-  savedBoxes[root]=nil
+ local function restoreBox(part)
+  local original=savedBoxes[part];if not original then return end
+  if part.Parent then pcall(function()
+   part.Size=original.size
+   part.Transparency=original.transparency
+   part.CanCollide=original.collide
+   if original.massless~=nil then part.Massless=original.massless end
+   if original.canQuery~=nil then part.CanQuery=original.canQuery end
+  end) end
+  savedBoxes[part]=nil
  end
  local function restoreBoxes()
-  local list={};for root in pairs(savedBoxes) do table.insert(list,root) end
-  for _,root in ipairs(list) do restoreBox(root) end
+  local list={};for part in pairs(savedBoxes) do table.insert(list,part) end
+  for _,part in ipairs(list) do restoreBox(part) end
+ end
+ local hitboxParts={"HumanoidRootPart","Torso","UpperTorso","LowerTorso","Head","Left Arm","Right Arm","LeftArm","RightArm","LeftUpperArm","RightUpperArm","LeftLowerArm","RightLowerArm","Left Hand","Right Hand","LeftHand","RightHand"}
+ local function collectHitParts(char)
+  local list={}
+  for _,name in ipairs(hitboxParts) do
+   local p=char:FindFirstChild(name)
+   if p and p:IsA("BasePart") then table.insert(list,p) end
+  end
+  if #list==0 then
+   local root=char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
+   if root and root:IsA("BasePart") then table.insert(list,root) end
+  end
+  return list
  end
  local panel=card(pages.Movement,"Fly","")
  toggle(panel,"Fly",function() return fly end,function(v) fly=v;if not v then stopFlight() end end)
@@ -3352,8 +3368,8 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
  connect(UIS.WindowFocused,function() focused=true end)
  local hitPanel=card(pages.Combat,"Hitbox Expander (Local Only)","")
  toggle(hitPanel,"Hitbox Expander",function() return expand end,function(v) expand=v;if not v then restoreBoxes() end end)
- moduleSlider(hitPanel,"Root part size",2,20,boxSize," studs",function() return boxSize end,function(v) boxSize=v end)
- note(hitPanel,"Resizes players' and NPCs' root parts on this client only. Does not change server hit detection or guarantee extra reach. Original properties restore on disable.")
+ moduleSlider(hitPanel,"Part size",2,25,boxSize," studs",function() return boxSize end,function(v) boxSize=v end)
+ note(hitPanel,"Local-only: enlarges nearby players'/NPCs' body parts on your client (HRP + torso/arms/head when present). Does not change server hit detection. Sizes restore on disable.")
  local recovery=card(pages.Player,"Local Recovery","")
  toggle(recovery,"Anti Stun (local recovery attempt)",function() return antiStun end,function(v) antiStun=v end)
  toggle(recovery,"Anti Ragdoll (local recovery attempt)",function() return antiRagdoll end,function(v) antiRagdoll=v end)
@@ -3407,14 +3423,34 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
   end
   if expand and permitted then
    local keep={}
+   local myRoot=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
    for h in pairs(hitboxHumanoids) do
     local char=h.Parent
-    if char and char~=LP.Character and char:IsDescendantOf(workspace) then
-     local part=char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
-     if part and h and h.Health>0 then
-      keep[part]=true
-      if not savedBoxes[part] then savedBoxes[part]={size=part.Size,transparency=part.Transparency,collide=part.CanCollide} end
-      part.Size=Vector3.new(boxSize,boxSize,boxSize);part.Transparency=.7;part.CanCollide=false
+    if char and char~=LP.Character and char:IsDescendantOf(workspace) and h and h.Health>0 then
+     local root=char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
+     if root and root:IsA("BasePart") then
+      local far=myRoot and (root.Position-myRoot.Position).Magnitude or 0
+      if not myRoot or far<=250 then
+       for _,part in ipairs(collectHitParts(char)) do
+        keep[part]=true
+        if not savedBoxes[part] then
+         savedBoxes[part]={size=part.Size,transparency=part.Transparency,collide=part.CanCollide,massless=part.Massless,canQuery=part.CanQuery}
+        end
+        local target=Vector3.new(boxSize,boxSize,boxSize)
+        -- Scale limbs a bit smaller than root so the silhouette stays readable
+        local n=part.Name
+        if n=="Head" then target=Vector3.new(boxSize*.55,boxSize*.55,boxSize*.55)
+        elseif n:find("Arm",1,true) or n:find("Hand",1,true) then target=Vector3.new(boxSize*.4,boxSize*.7,boxSize*.4)
+        elseif n=="UpperTorso" or n=="LowerTorso" or n=="Torso" then target=Vector3.new(boxSize*.85,boxSize*.7,boxSize*.5)
+        end
+        pcall(function()
+         if (part.Size-target).Magnitude>.05 then part.Size=target end
+         part.Transparency=.65
+         part.CanCollide=false
+         part.Massless=true
+        end)
+       end
+      end
      end
     end
    end
@@ -3441,11 +3477,12 @@ end)
   if key=="items" then note(p,"Marks streamed-in Workspace Tools with Handles, excluding equipped tools. Non-Tool pickups need game-specific identification.") end
  end
  local config=card(pages.ESP,"Advanced ESP Distance","");moduleSlider(config,"Maximum distance",100,3000,maxDistance," studs",function() return maxDistance end,function(v) maxDistance=v end)
- local reachPanel=card(pages.Combat,"Experimental Reach (Range Preview)","")
- toggle(reachPanel,"Experimental Reach preview",function() return options.reach end,function(v) options.reach=v end)
- moduleSlider(reachPanel,"Preview radius",3,30,range," studs",function() return range end,function(v) range=v end)
- note(reachPanel,"Visualization only. Does not extend server-recognized attacks or change hit detection.")
- local ring=Instance.new("Part");ring.Name="JJSRangePreview";ring.Shape=Enum.PartType.Cylinder;ring.Anchored=true;ring.CanCollide=false;ring.CanTouch=false;ring.CanQuery=false;ring.Material=Enum.Material.Neon;ring.Color=T.acc;ring.Transparency=.8
+ local reachPanel=card(pages.Combat,"Range Expander (Local Preview)","")
+ toggle(reachPanel,"Range preview",function() return options.reach end,function(v) options.reach=v end)
+ moduleSlider(reachPanel,"Preview radius",3,40,range," studs",function() return range end,function(v) range=v end)
+ note(reachPanel,"Local visualization of a reach radius around you (ground ring + vertical volume). Does not extend server hit detection or change attacks.")
+ local ring=Instance.new("Part");ring.Name="JJSRangePreview";ring.Shape=Enum.PartType.Cylinder;ring.Anchored=true;ring.CanCollide=false;ring.CanTouch=false;ring.CanQuery=false;ring.Material=Enum.Material.ForceField;ring.Color=T.acc;ring.Transparency=.55;ring.CastShadow=false
+ local volume=Instance.new("Part");volume.Name="JJSRangeVolume";volume.Shape=Enum.PartType.Cylinder;volume.Anchored=true;volume.CanCollide=false;volume.CanTouch=false;volume.CanQuery=false;volume.Material=Enum.Material.ForceField;volume.Color=T.acc;volume.Transparency=.85;volume.CastShadow=false
  local function segment(rec,n,a,b)
   local l=rec.lines[n]
   if not l then l=raw("Frame",rec.folder,{AnchorPoint=Vector2.new(.5,.5),BorderSizePixel=0,BackgroundColor3=T.acc});rec.lines[n]=l end
@@ -3461,7 +3498,16 @@ end)
   if not alive then return end;elapsed+=dt;if elapsed<1/30 then return end;elapsed=0
   local camera=workspace.CurrentCamera;if not camera then return end
   local own=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart");local active=scriptsActive()
-  if active and options.reach and own then ring.Size=Vector3.new(.08,range*2,range*2);ring.CFrame=CFrame.new(own.Position-Vector3.new(0,2.8,0))*CFrame.Angles(0,0,math.pi/2);ring.Parent=workspace else ring.Parent=nil end
+  if active and options.reach and own then
+   -- Cylinder axis is local X: flat ground ring + upright volume
+   local d=math.max(2,range*2)
+   ring.Size=Vector3.new(0.12,d,d)
+   ring.CFrame=CFrame.new(own.Position.X,own.Position.Y-2.6,own.Position.Z)*CFrame.Angles(0,0,math.pi/2)
+   ring.Color=T.acc;ring.Parent=workspace
+   volume.Size=Vector3.new(6,d,d)
+   volume.CFrame=CFrame.new(own.Position)*CFrame.Angles(0,0,math.pi/2)
+   volume.Color=T.acc;volume.Parent=workspace
+  else ring.Parent=nil;volume.Parent=nil end
   local function project(v) local p,on=camera:WorldToViewportPoint(v);return Vector2.new(p.X,p.Y),on and p.Z>.1 end
   for _,player in ipairs(Players:GetPlayers()) do if player~=LP then
    local r=records[player]
@@ -3514,7 +3560,7 @@ end)
    elseif tag then tag.Enabled=false end
   end
  end)
- local function cleanup() if not alive then return end;alive=false;ring:Destroy();screen:Destroy();table.clear(records);table.clear(tools);table.clear(tags) end
+ local function cleanup() if not alive then return end;alive=false;ring:Destroy();volume:Destroy();screen:Destroy();table.clear(records);table.clear(tools);table.clear(tags) end
  connect(gui.Destroying,cleanup);connect(unload.Activated,cleanup)
 end)
 
@@ -3613,26 +3659,239 @@ end)
  connect(gui.Destroying,cleanup);connect(unload.Activated,cleanup)
 end)
 
-;__JJSBoot:run("Exposed Cooldown Reader",function()
- local on=false;local alive=true;local candidates={};local elapsed=0
- local p=card(pages.Combat,"Cooldown Revealer (Client-Exposed Only)","")
- toggle(p,"Cooldown Revealer",function() return on end,function(v) on=v end)
- local text=make("TextLabel",p,{Size=UDim2.new(1,0,0,220),Text="Off",TextWrapped=true,BackgroundTransparency=1,TextColor3=T.dim,Font=Enum.Font.Code,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,LayoutOrder=nextOrder(p)+2})
- make("TextLabel",p,{Size=UDim2.new(1,0,0,64),Text="Visible local HUD cooldowns only. Hidden opponent timers and all-current-move coverage are not implemented. No seconds are invented for bar-only indicators.",TextWrapped=true,BackgroundTransparency=1,TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,LayoutOrder=nextOrder(p)+2})
- local function consider(o) if not o:IsA("GuiObject") or o:IsDescendantOf(gui) then return end;local n=o.Name:lower();if n:find("cooldown",1,true) or n:find("cdframe",1,true) or n=="cd" then candidates[o]=true end end
- for _,o in ipairs(PG:GetDescendants()) do consider(o) end
- connect(PG.DescendantAdded,consider);connect(PG.DescendantRemoving,function(o) candidates[o]=nil end)
- local function visible(o) local n=o;while n and n~=PG do if n:IsA("GuiObject") and not n.Visible or n:IsA("ScreenGui") and not n.Enabled then return false end;n=n.Parent end;return n==PG and o.AbsoluteSize.X>0 and o.AbsoluteSize.Y>0 end
- connect(RS.Heartbeat,function(dt)
-  if not alive then return end;elapsed+=dt;if elapsed<.25 then return end;elapsed=0
-  if not on then text.Text="Off";return end
-  local rows={};local seen={}
-  for o in pairs(candidates) do if o.Parent and visible(o) and #rows<12 then local parent=o.Parent;local key=parent:GetFullName();if not seen[key] then seen[key]=true;local value=(o:IsA("TextLabel") or o:IsA("TextButton") or o:IsA("TextBox")) and o.Text or "";table.insert(rows,parent.Name..": "..(value~="" and value:sub(1,90) or "visible indicator; no timer exposed")) end end end
-  table.sort(rows);text.Text=#rows>0 and table.concat(rows,"\n") or "No recognizable visible cooldown indicators. Unsupported HUDs are not guessed."
+
+;__JJSBoot:run("Triggerbot",function()
+ local alive=true
+ local on=false
+ local range=10
+ local fov=70
+ local gap=.18
+ local last=-math.huge
+ local teamCheck=true
+ local p=card(pages.Combat,"Triggerbot","")
+ toggle(p,"Triggerbot",function() return on end,function(v) on=v end)
+ moduleSlider(p,"Trigger range",3,25,range," studs",function() return range end,function(v) range=v end)
+ moduleSlider(p,"Trigger FOV",20,180,fov," deg",function() return fov end,function(v) fov=v end)
+ moduleSlider(p,"Click gap",50,500,math.floor(gap*1000+.5)," ms",function() return math.floor(gap*1000+.5) end,function(v) gap=v/1000 end)
+ toggle(p,"Skip teammates",function() return teamCheck end,function(v) teamCheck=v end)
+ make("TextLabel",p,{Size=UDim2.new(1,0,0,56),BackgroundTransparency=1,Text="Auto M1 when a living enemy is inside range and FOV. Local input only; no aimbot lock. Pauses with hub open, typing, or other macros.",TextWrapped=true,TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=nextOrder(p)+2})
+ local function click()
+  if not okVIM or not VIM then return false end
+  local pos=UIS:GetMouseLocation()
+  local inset=game:GetService("GuiService"):GetGuiInset()
+  local x,y=pos.X-inset.X,pos.Y-inset.Y
+  local ok1=pcall(function() VIM:SendMouseButtonEvent(x,y,0,true,game,0) end)
+  task.delay(.03,function() pcall(function() if okVIM and VIM then VIM:SendMouseButtonEvent(x,y,0,false,game,0) end end) end)
+  return ok1
+ end
+ local function enemyInFront()
+  local char=LP.Character
+  local hum=char and char:FindFirstChildOfClass("Humanoid")
+  local root=char and char:FindFirstChild("HumanoidRootPart")
+  local cam=workspace.CurrentCamera
+  if not hum or hum.Health<=0 or not root or not cam then return false end
+  local best,bestDist=nil,range
+  for _,plr in ipairs(Players:GetPlayers()) do
+   if plr~=LP then
+    if teamCheck and not LP.Neutral and not plr.Neutral and LP.Team and LP.Team==plr.Team then
+    else
+     local c=plr.Character
+     local h=c and c:FindFirstChildOfClass("Humanoid")
+     local r=c and (c:FindFirstChild("HumanoidRootPart") or c:FindFirstChild("UpperTorso") or c:FindFirstChild("Torso"))
+     if h and h.Health>0 and r then
+      local offset=r.Position-root.Position
+      local dist=offset.Magnitude
+      if dist<=bestDist and dist>1.2 then
+       local toTarget=offset.Unit
+       local look=cam.CFrame.LookVector
+       local ang=math.deg(math.acos(math.clamp(look:Dot(toTarget),-1,1)))
+       if ang<=fov*.5 then best=r;bestDist=dist end
+      end
+     end
+    end
+   end
+  end
+  -- NPCs
+  for _,m in ipairs(workspace:GetChildren()) do
+   if m:IsA("Model") and m~=LP.Character then
+    local h=m:FindFirstChildOfClass("Humanoid")
+    local r=m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("UpperTorso") or m:FindFirstChild("Torso")
+    if h and h.Health>0 and r and not Players:GetPlayerFromCharacter(m) then
+     local offset=r.Position-root.Position
+     local dist=offset.Magnitude
+     if dist<=bestDist and dist>1.2 then
+      local toTarget=offset.Unit
+      local look=cam.CFrame.LookVector
+      local ang=math.deg(math.acos(math.clamp(look:Dot(toTarget),-1,1)))
+      if ang<=fov*.5 then best=r;bestDist=dist end
+     end
+    end
+   end
+  end
+  return best~=nil
+ end
+ connect(RS.Heartbeat,function()
+  if not alive or not on or not scriptsActive() or main.Visible or UIS:GetFocusedTextBox() or busy or todoBusy or tripleJumpBusy or manualSequenceBusy then return end
+  if gui:GetAttribute("ComboStudioBusy") or gui:GetAttribute("AutoParryHolding") then return end
+  if os.clock()-last<gap then return end
+  if enemyInFront() then
+   if click() then last=os.clock() end
+  end
  end)
- local function cleanup() alive=false;table.clear(candidates) end
+ local function cleanup() alive=false;on=false end
  connect(gui.Destroying,cleanup);connect(unload.Activated,cleanup)
 end)
+
+;__JJSBoot:run("Dash HUD",function()
+ local alive=true
+ local enabled=true
+ local lastKind="—"
+ local flashUntil={Front=0,Left=0,Right=0,Back=0}
+ local counts={Front=0,Left=0,Right=0,Back=0}
+ local layer=Instance.new("ScreenGui")
+ layer.Name="JJSDashHUD"
+ layer.ResetOnSpawn=false
+ layer.IgnoreGuiInset=true
+ layer.DisplayOrder=1002
+ layer.Parent=PG
+ local panel=Instance.new("Frame")
+ panel.Name="DashHudPanel"
+ panel.Size=UDim2.fromOffset(168,118)
+ panel.Position=UDim2.new(1,-186,0,96)
+ panel.BackgroundColor3=Color3.fromRGB(22,15,12)
+ panel.BackgroundTransparency=.12
+ panel.BorderSizePixel=0
+ panel.Active=true
+ panel.Parent=layer
+ local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,10);corner.Parent=panel
+ local stroke=Instance.new("UIStroke");stroke.Color=T.acc;stroke.Thickness=1;stroke.Parent=panel
+ local title=Instance.new("TextLabel")
+ title.BackgroundTransparency=1
+ title.Size=UDim2.new(1,-12,0,20)
+ title.Position=UDim2.fromOffset(8,6)
+ title.Font=Enum.Font.GothamBold
+ title.TextSize=12
+ title.TextXAlignment=Enum.TextXAlignment.Left
+ title.TextColor3=T.txt
+ title.Text="Dash HUD  (drag)"
+ title.Parent=panel
+ local lastLabel=Instance.new("TextLabel")
+ lastLabel.BackgroundTransparency=1
+ lastLabel.Size=UDim2.new(1,-12,0,16)
+ lastLabel.Position=UDim2.fromOffset(8,26)
+ lastLabel.Font=Enum.Font.Gotham
+ lastLabel.TextSize=11
+ lastLabel.TextXAlignment=Enum.TextXAlignment.Left
+ lastLabel.TextColor3=T.dim
+ lastLabel.Text="Last: —"
+ lastLabel.Parent=panel
+ local cells={}
+ local order={{"Front",UDim2.fromOffset(56,46)},{"Left",UDim2.fromOffset(8,74)},{"Right",UDim2.fromOffset(104,74)},{"Back",UDim2.fromOffset(56,74)}}
+ for _,entry in ipairs(order) do
+  local name,pos=entry[1],entry[2]
+  local b=Instance.new("TextLabel")
+  b.Size=UDim2.fromOffset(56,24)
+  b.Position=pos
+  b.BackgroundColor3=T.p2
+  b.TextColor3=T.dim
+  b.Font=Enum.Font.GothamBold
+  b.TextSize=11
+  b.Text=name
+  b.BorderSizePixel=0
+  b.Parent=panel
+  local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,6);c.Parent=b
+  cells[name]=b
+ end
+ -- drag
+ local dragging,dragStart,origin,touch=false,nil,nil,nil
+ connect(panel.InputBegan,function(input)
+  if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+   dragging=true;dragStart=input.Position;origin=panel.Position;touch=input
+  end
+ end)
+ connect(UIS.InputChanged,function(input)
+  if dragging and (input==touch or input.UserInputType==Enum.UserInputType.MouseMovement) then
+   local d=input.Position-dragStart
+   panel.Position=UDim2.new(origin.X.Scale,origin.X.Offset+d.X,origin.Y.Scale,origin.Y.Offset+d.Y)
+  end
+ end)
+ connect(UIS.InputEnded,function(input) if input==touch then dragging=false;touch=nil end end)
+ local function paint()
+  local now=os.clock()
+  for kind,cell in pairs(cells) do
+   local hot=now<flashUntil[kind]
+   cell.BackgroundColor3=hot and T.acc or T.p2
+   cell.TextColor3=hot and Color3.fromRGB(28,14,6) or T.dim
+   cell.Text=hot and (kind.."!") or (kind.." "..tostring(counts[kind]))
+  end
+  lastLabel.Text="Last: "..lastKind
+  layer.Enabled=enabled and hubUnlocked and __JJSBoot.ready
+ end
+ local function classifyDash()
+  local char=LP.Character
+  local hum=char and char:FindFirstChildOfClass("Humanoid")
+  local root=char and char:FindFirstChild("HumanoidRootPart")
+  if not hum or not root then return "Front" end
+  local move=hum.MoveDirection
+  if move.Magnitude<.08 then
+   -- stationary Q is treated as front dash in JJS notes
+   return "Front"
+  end
+  local look=Vector3.new(root.CFrame.LookVector.X,0,root.CFrame.LookVector.Z)
+  if look.Magnitude<.05 then return "Front" end
+  look=look.Unit
+  local flat=Vector3.new(move.X,0,move.Z)
+  if flat.Magnitude<.05 then return "Front" end
+  flat=flat.Unit
+  local forward=look:Dot(flat)
+  local right=look:Cross(Vector3.yAxis).Unit:Dot(flat)
+  if forward>.55 then return "Front" end
+  if forward<-.55 then return "Back" end
+  if right>0 then return "Right" end
+  return "Left"
+ end
+ local function noteDash()
+  local kind=classifyDash()
+  lastKind=kind
+  counts[kind]=(counts[kind] or 0)+1
+  flashUntil[kind]=os.clock()+.55
+  paint()
+ end
+ connect(UIS.InputBegan,function(input,g)
+  if g or not alive then return end
+  if input.KeyCode==Enum.KeyCode.Q then noteDash() end
+ end)
+ -- mobile: many JJS layouts still map dash to a button named with dash/q; also velocity spike fallback
+ local lastVel=Vector3.zero
+ connect(RS.Heartbeat,function()
+  if not alive then return end
+  paint()
+  local char=LP.Character
+  local root=char and char:FindFirstChild("HumanoidRootPart")
+  if not root then return end
+  local vel=root.AssemblyLinearVelocity
+  local horizontal=Vector3.new(vel.X,0,vel.Z)
+  local prev=Vector3.new(lastVel.X,0,lastVel.Z)
+  lastVel=vel
+  -- sudden horizontal speed jump without recent Q flash can still mark a dash (controller / remapped)
+  if horizontal.Magnitude>38 and (horizontal.Magnitude-prev.Magnitude)>28 then
+   local recent=false
+   local now=os.clock()
+   for _,t in pairs(flashUntil) do if now<t then recent=true break end end
+   if not recent then noteDash() end
+  end
+ end)
+ local ui=card(pages.Visuals,"Dash HUD","")
+ toggle(ui,"Show Dash HUD",function() return enabled end,function(v) enabled=v;paint() end)
+ make("TextLabel",ui,{Size=UDim2.new(1,0,0,48),BackgroundTransparency=1,Text="Movable on-screen panel. Flashes Front / Left / Right / Back when Q dash (or a sharp dash-like burst) is detected. Counts session uses.",TextWrapped=true,TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=nextOrder(ui)+2})
+ local function cleanup()
+  if not alive then return end
+  alive=false
+  if layer then layer:Destroy() end
+ end
+ connect(gui.Destroying,cleanup);connect(unload.Activated,cleanup)
+end)
+
 
 applyResponsiveLayout()
 end,function(e) return debug.traceback(tostring(e),2) end)
