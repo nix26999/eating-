@@ -1662,31 +1662,33 @@ end)
 end)
 
 
-;__JJSBoot:run("Fling Kill All",function()
 
+;__JJSBoot:run("Fling Kill All",function()
+ -- Simple fling: teleport near target, spin hard, move very fast into them.
  local active=false
  local closed=false
  local generation=0
- local snapshot=nil
- local mouseDown=false
  local skipTeam=true
  local range=300
- local hitDelayMs=200
- local contactMs=550
+ local spinPower=250
+ local moveSpeed=220
+ local durationMs=500
  local ownedBusy=false
+ local snapshot=nil
  local panel=card(pages.Combat,"Fling Kill All","")
- local feedback=make("TextLabel",panel,{Size=UDim2.new(1,0,0,44),BackgroundTransparency=1,Text="Ready - improved fling contact. Hits/kills still depend on server physics.",TextColor3=T.dim,TextWrapped=true,TextSize=11,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=3})
+ local feedback=make("TextLabel",panel,{Size=UDim2.new(1,0,0,40),BackgroundTransparency=1,Text="Ready — spin + high speed into target",TextColor3=T.dim,TextWrapped=true,TextSize=11,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=3})
  ord[panel]=3
  toggle(panel,"Skip teammates",function() return skipTeam end,function(v) if not active then skipTeam=v end end)
  moduleSlider(panel,"Maximum range",25,1000,range," studs",function() return range end,function(v) if not active then range=v end end)
- moduleSlider(panel,"After M1 delay",100,1000,hitDelayMs," ms",function() return hitDelayMs end,function(v) if not active then hitDelayMs=v end end)
- moduleSlider(panel,"Fling duration",100,700,contactMs," ms",function() return contactMs end,function(v) if not active then contactMs=v end end)
+ moduleSlider(panel,"Spin power",50,500,spinPower,"",function() return spinPower end,function(v) if not active then spinPower=v end end)
+ moduleSlider(panel,"Move speed",80,400,moveSpeed,"",function() return moveSpeed end,function(v) if not active then moveSpeed=v end end)
+ moduleSlider(panel,"Fling duration",150,1200,durationMs," ms",function() return durationMs end,function(v) if not active then durationMs=v end end)
  local function makeButton(text,color)
   local b=make("TextButton",panel,{Size=UDim2.new(1,0,0,30),BackgroundColor3=color or T.p2,Text=text,TextColor3=T.txt,Font=Enum.Font.GothamBold,TextSize=12,LayoutOrder=nextOrder(panel)+2})
   corner(b,6)
   return b
  end
- local testButton=makeButton("Test nearest: teleport > M1 > fling")
+ local testButton=makeButton("Fling nearest")
  local allButton=makeButton("Fling Kill All - one pass")
  local stopButton=makeButton("Stop (End)",T.warn)
  local function report(text)
@@ -1701,25 +1703,23 @@ end)
  local function teammate(p)
   return not LP.Neutral and not p.Neutral and LP.Team~=nil and LP.Team==p.Team
  end
- local function releaseMouse()
-  if mouseDown and okVIM and VIM then pcall(function() VIM:SendMouseButtonEvent(0,0,0,false,game,0) end) end
-  mouseDown=false
- end
  local function restoreCharacter()
-  releaseMouse()
   local state=snapshot
   snapshot=nil
   if not state then return end
-  for part,value in pairs(state.collisions) do if part.Parent then pcall(function() part.CanCollide=value end) end end
-  if state.humanoid.Parent then pcall(function()
-   state.humanoid.AutoRotate=state.autoRotate
-   if state.platform~=nil then state.humanoid.PlatformStand=state.platform end
-  end) end
+  for part,value in pairs(state.collisions) do
+   if part.Parent then pcall(function() part.CanCollide=value end) end
+  end
+  if state.humanoid.Parent then
+   pcall(function()
+    state.humanoid.AutoRotate=state.autoRotate
+    state.humanoid.PlatformStand=state.platform
+   end)
+  end
   if state.root.Parent and LP.Character==state.character then
    pcall(function()
     state.root.AssemblyLinearVelocity=Vector3.zero
     state.root.AssemblyAngularVelocity=Vector3.zero
-    state.root.CFrame=state.origin
    end)
   end
  end
@@ -1738,114 +1738,76 @@ end)
   releaseOwnership()
   report(message or "Stopped")
  end
- local function alive(id,player,state,target,targetHumanoid,targetRoot)
-  return running and gui.Parent~=nil and not closed and active and generation==id and LP.Character==state.character and state.root.Parent~=nil and state.humanoid.Health>0 and player.Parent==Players and player.Character==target and targetRoot.Parent~=nil and targetHumanoid.Health>0
- end
- local function waitFor(seconds,id,player,state,target,targetHumanoid,targetRoot)
-  local finish=os.clock()+seconds
-  repeat
-   if not alive(id,player,state,target,targetHumanoid,targetRoot) then return false end
-   RS.Heartbeat:Wait()
-  until os.clock()>=finish
-  return alive(id,player,state,target,targetHumanoid,targetRoot)
+ local function stillOk(id,player,state,targetRoot,targetHumanoid)
+  return running and gui.Parent and not closed and active and generation==id
+   and LP.Character==state.character and state.root.Parent and state.humanoid.Health>0
+   and player.Parent==Players and targetRoot.Parent and targetHumanoid.Health>0
  end
  local function attempt(player,id)
   local character,humanoid,root=living(LP)
   local target,targetHumanoid,targetRoot=living(player)
-  if not root or not targetRoot or player==LP or(skipTeam and teammate(player)) then return false,false,0,"Skipped" end
-  if(targetRoot.Position-root.Position).Magnitude>range then return false,false,0,"Out of range" end
-  local state={character=character,humanoid=humanoid,root=root,origin=root.CFrame,autoRotate=humanoid.AutoRotate,collisions={},platform=humanoid.PlatformStand}
+  if not root or not targetRoot or player==LP or (skipTeam and teammate(player)) then
+   return false,0,"Skipped"
+  end
+  if (targetRoot.Position-root.Position).Magnitude>range then
+   return false,0,"Out of range"
+  end
+  local state={
+   character=character,humanoid=humanoid,root=root,
+   autoRotate=humanoid.AutoRotate,platform=humanoid.PlatformStand,collisions={}
+  }
   snapshot=state
-  local sent,completed,displacement=false,false,0
+  local displacement=0
   local reason="Cancelled"
   local ok,err=pcall(function()
    humanoid.AutoRotate=false
-   report("Teleport behind: "..player.DisplayName)
-   -- Stick close behind torso height for reliable M1 + contact
-   local back=Vector3.new(targetRoot.CFrame.LookVector.X,0,targetRoot.CFrame.LookVector.Z)
-   local position
-   if back.Magnitude<.05 then
-    position=targetRoot.Position+Vector3.new(0,0.5,2.2)
-   else
-    position=targetRoot.Position-back.Unit*2.2+Vector3.new(0,0.5,0)
-   end
-   root.CFrame=CFrame.lookAt(position,Vector3.new(targetRoot.Position.X,position.Y,targetRoot.Position.Z))
-   root.AssemblyLinearVelocity=Vector3.zero
-   root.AssemblyAngularVelocity=Vector3.zero
-   if not waitFor(.05,id,player,state,target,targetHumanoid,targetRoot) then return end
-   -- Re-stick if target drifted
-   if (root.Position-targetRoot.Position).Magnitude>6 then
-    local b2=Vector3.new(targetRoot.CFrame.LookVector.X,0,targetRoot.CFrame.LookVector.Z)
-    local pos2=b2.Magnitude<.05 and (targetRoot.Position+Vector3.new(0,0.5,2.2)) or (targetRoot.Position-b2.Unit*2.2+Vector3.new(0,0.5,0))
-    root.CFrame=CFrame.lookAt(pos2,Vector3.new(targetRoot.Position.X,pos2.Y,targetRoot.Position.Z))
-   end
-   if(root.Position-targetRoot.Position).Magnitude>8 then reason="Target moved before M1";return end
-   if UIS:GetFocusedTextBox() then reason="Typing - cancelled";return end
-   report("M1 input: "..player.DisplayName)
-   mouseDown=true
-   local pos=UIS:GetMouseLocation()
-   local inset=game:GetService("GuiService"):GetGuiInset()
-   local mx,my=pos.X-inset.X,pos.Y-inset.Y
-   local inputOK=pcall(function() VIM:SendMouseButtonEvent(mx,my,0,true,game,0) end)
-   if not inputOK then releaseMouse();reason="M1 input unavailable";return end
-   local valid=waitFor(.04,id,player,state,target,targetHumanoid,targetRoot)
-   releaseMouse()
-   if not valid then return end
-   sent=true
-   if not waitFor(math.max(0.05,hitDelayMs/1000),id,player,state,target,targetHumanoid,targetRoot) then reason="Target unavailable after M1";return end
-   if(root.Position-targetRoot.Position).Magnitude>22 then reason="Target moved before fling";return end
-   -- Keep root collidable for physics interaction; disable other limbs to reduce catch
+   humanoid.PlatformStand=true
+   -- only root collides so we slide into them hard
    for _,part in ipairs(character:GetDescendants()) do
     if part:IsA("BasePart") then
      state.collisions[part]=part.CanCollide
      part.CanCollide=(part==root)
     end
    end
-   humanoid.PlatformStand=true
-   local targetOrigin=targetRoot.Position
+   report("Fling: "..player.DisplayName)
+   local origin=targetRoot.Position
    local began=os.clock()
-   local duration=math.max(0.2,contactMs/1000)
-   report("Fling attempt: "..player.DisplayName)
-   while os.clock()-began<duration do
-    if not alive(id,player,state,target,targetHumanoid,targetRoot) then break end
-    if UIS:GetFocusedTextBox() then reason="Typing - cancelled";break end
+   local dur=math.max(0.12,durationMs/1000)
+   while os.clock()-began<dur do
+    if not stillOk(id,player,state,targetRoot,targetHumanoid) then break end
     local tpos=targetRoot.Position
     local delta=tpos-root.Position
-    if delta.Magnitude>28 then break end
-    -- Drive into target with spin (classic local fling contact)
-    local toward=(tpos-root.Position)
-    if toward.Magnitude<.01 then toward=targetRoot.CFrame.LookVector end
-    local unit=toward.Unit
-    root.CFrame=CFrame.new(tpos+unit*0.15,tpos+unit)
-    root.AssemblyLinearVelocity=unit*180+Vector3.new(0,40,0)
-    root.AssemblyAngularVelocity=Vector3.new(0,120,0)+unit*40
-    RS.Heartbeat:Wait()
-    if not targetRoot.Parent then break end
-    root.CFrame=CFrame.new(targetRoot.Position)
-    root.AssemblyLinearVelocity=Vector3.new(unit.X*220,95,unit.Z*220)
-    root.AssemblyAngularVelocity=Vector3.new(90,180,90)
+    local dir
+    if delta.Magnitude>0.05 then
+     dir=delta.Unit
+    else
+     dir=Vector3.new(0,1,0)
+    end
+    -- sit on top of / into the target and spin + blast
+    root.CFrame=CFrame.new(tpos+dir*0.2)
+    root.AssemblyLinearVelocity=dir*moveSpeed+Vector3.new(0,math.max(40,moveSpeed*0.25),0)
+    root.AssemblyAngularVelocity=Vector3.new(spinPower,spinPower,spinPower)
     RS.Heartbeat:Wait()
    end
-   humanoid.PlatformStand=state.platform
-   displacement=targetRoot.Parent and(targetRoot.Position-targetOrigin).Magnitude or 0
-   completed=true
-   reason=string.format("Attempt completed (moved %.1f studs)",displacement)
+   displacement=targetRoot.Parent and (targetRoot.Position-origin).Magnitude or 0
+   reason=string.format("Done — target moved %.1f studs",displacement)
   end)
   if snapshot==state then restoreCharacter() end
-  if not ok then return false,sent,0,tostring(err) end
-  return completed,sent,displacement,reason
+  if not ok then return false,0,tostring(err) end
+  return true,displacement,reason
  end
  local function start(nearestOnly)
   if active or closed or not running or not gui.Parent then return end
-  if busy or todoBusy or manualSequenceBusy or tripleJumpBusy then report("Wait for the other macro to finish");return end
+  if busy or todoBusy or manualSequenceBusy or tripleJumpBusy then
+   report("Wait for the other macro to finish");return
+  end
   if UIS:GetFocusedTextBox() then report("Finish typing first");return end
-  if not okVIM or not VIM then report("Input simulation unavailable");return end
   local _,_,root=living(LP)
   if not root then report("Character unavailable");return end
   local queue={}
   for _,p in ipairs(Players:GetPlayers()) do
    local _,_,other=living(p)
-   if p~=LP and other and(not skipTeam or not teammate(p)) then
+   if p~=LP and other and (not skipTeam or not teammate(p)) then
     local d=(other.Position-root.Position).Magnitude
     if d<=range then table.insert(queue,{player=p,distance=d}) end
    end
@@ -1857,38 +1819,41 @@ end)
   gui:SetAttribute("FlingSequenceActive",true)
   generation+=1
   local id=generation
+  main.Visible=false
   task.spawn(function()
-   local completed,inputs,moved=0,0,0
+   local done,moved=0,0
    local ok,err=xpcall(function()
-    RS.Heartbeat:Wait();RS.Heartbeat:Wait()
     for _,item in ipairs(queue) do
      if not running or closed or generation~=id or not active then break end
-     if not living(LP) then stop("Character unavailable - stopped");return end
-     if UIS:GetFocusedTextBox() then stop("Typing - stopped");return end
-     local done,sent,distance,reason=attempt(item.player,id)
-     if sent then inputs+=1 end
-     if done then completed+=1;if distance>=8 then moved+=1 end end
+     if not living(LP) then stop("Character unavailable");return end
+     local success,disp,reason=attempt(item.player,id)
+     if success then
+      done+=1
+      if disp>=5 then moved+=1 end
+     end
+     report(reason or "?")
      if generation~=id then break end
-     if not done then report(reason) end
-     local deadline=os.clock()+.2
-     while os.clock()<deadline and generation==id and active and running and not closed do RS.Heartbeat:Wait() end
+     task.wait(0.08)
     end
    end,function(e) return tostring(e) end)
    if generation==id then
     restoreCharacter();active=false;releaseOwnership()
-    report(ok and string.format("%d M1 inputs | %d fling attempts | %d moved >=8 studs\nHits, kills and credit unverified",inputs,completed,moved) or "Stopped: "..tostring(err))
+    report(ok and string.format("%d flings | %d moved >=5 studs",done,moved) or ("Stopped: "..tostring(err)))
    end
   end)
  end
- __JJSBoot.bind(panel,"Fling",function() return active end,function(v) if v then main.Visible=false;start(true) else stop("Stopped from module switch") end end);table.insert(__JJSBoot.cancels,function() if active then stop("Stopped by touch control") end end)
+ __JJSBoot.bind(panel,"Fling",function() return active end,function(v)
+  if v then start(true) else stop("Stopped from module switch") end
+ end)
+ table.insert(__JJSBoot.cancels,function() if active then stop("Stopped by touch control") end end)
  connect(testButton.Activated,function() start(true) end)
  connect(allButton.Activated,function() start(false) end)
  connect(stopButton.Activated,function() if active then stop("Stopped") end end)
  connect(UIS.InputBegan,function(input)
   if input.KeyCode==Enum.KeyCode.End and active then stop("Stopped") end
  end)
- connect(LP.CharacterRemoving,function() if active then stop("Character removed - stopped") end end)
- connect(UIS.WindowFocusReleased,function() if active then stop("Focus lost - stopped") end end)
+ connect(LP.CharacterRemoving,function() if active then stop("Character removed") end end)
+ connect(UIS.WindowFocusReleased,function() if active then stop("Focus lost") end end)
  local function shutdown()
   if closed then return end
   stop("Stopped")
@@ -1896,7 +1861,6 @@ end)
  end
  connect(unload.Activated,shutdown)
  connect(gui.Destroying,shutdown)
-
 end)
 
 
@@ -3360,6 +3324,13 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
  local fly,expand,antiStun,antiRagdoll=false,false,false,false
  local punchExpand=false
  local speed,boxSize,punchSize=50,8,6
+ local recoveryAggressive=true
+ local recoveryBreakConstraints=true
+ local recoveryClearVel=true
+ local lastRecoveryAt=0
+ local lastRecoveryReason="—"
+ local recoveryStatusLabel=nil
+ local recoveryStateConn=nil
  local punchVisuals={} -- client visual only; never resize real character parts (that freezes physics)
 
  local flightHum,flightRoot,oldRotate,oldPlatform,attachment,velocity,orientation
@@ -3433,9 +3404,17 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
  moduleSlider(punchPanel,"Visual reach size",2,20,punchSize," studs",function() return punchSize end,function(v) punchSize=v;clearPunchVisuals() end)
  note(punchPanel,"Local visual only: adds non-colliding reach spheres on your hands/arms. Does NOT resize real character parts (resizing arms/HRP freezes movement). Server hit detection is unchanged.")
  local recovery=card(pages.Player,"Local Recovery","")
- toggle(recovery,"Anti Stun (local recovery attempt)",function() return antiStun end,function(v) antiStun=v end)
- toggle(recovery,"Anti Ragdoll (local recovery attempt)",function() return antiRagdoll end,function(v) antiRagdoll=v end)
- note(recovery,"Attempts recovery from local Physics / PlatformStand / FallingDown / Ragdoll states only. Does not remove JJS server stun, constraints, or cooldowns.")
+ toggle(recovery,"Anti Stun",function() return antiStun end,function(v) antiStun=v end)
+ toggle(recovery,"Anti Ragdoll",function() return antiRagdoll end,function(v) antiRagdoll=v end)
+ toggle(recovery,"Aggressive recovery",function() return recoveryAggressive end,function(v) recoveryAggressive=v end)
+ toggle(recovery,"Break local ragdoll constraints",function() return recoveryBreakConstraints end,function(v) recoveryBreakConstraints=v end)
+ toggle(recovery,"Clear residual velocity",function() return recoveryClearVel end,function(v) recoveryClearVel=v end)
+ recoveryStatusLabel=make("TextLabel",recovery,{
+  Size=UDim2.new(1,0,0,36),BackgroundTransparency=1,Text="Last recovery: —",
+  TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,TextWrapped=true,
+  TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=nextOrder(recovery)+2
+ })
+ note(recovery,"JJS: upright stun (~0.75s on M1) is not the same as ragdoll. True ragdoll can be server-locked/unevadable. This only fights local PlatformStand / Physics / Ragdoll / FallingDown / Sit and local BallSocket-style constraints. Server stun, remote locks, and true ragdoll may re-apply.")
  local unavailable={
   {pages.Combat,"Remote Train Activation","Unavailable: verified train handler and arguments were not present in the provided implementation."},
   {pages.Movement,"Domain Invade","Unavailable: no verified domain entry implementation was provided."},
@@ -3445,6 +3424,39 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
  for _,entry in ipairs(unavailable) do
   local p=card(entry[1],entry[2],"");note(p,entry[3]);p:SetAttribute("FeatureStatus","Unavailable")
  end
+ local function bindRecoveryState(hum)
+  if recoveryStateConn then recoveryStateConn:Disconnect();recoveryStateConn=nil end
+  if not hum then return end
+  recoveryStateConn=hum.StateChanged:Connect(function(_,newState)
+   if not alive or not (antiStun or antiRagdoll) then return end
+   if gui:GetAttribute("FlingSequenceActive") or flightRoot then return end
+   if not focused or not scriptsActive() then return end
+   if antiStun and (newState==Enum.HumanoidStateType.Physics or newState==Enum.HumanoidStateType.Seated) then
+    pcall(function()
+     hum.PlatformStand=false;hum.Sit=false
+     hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+     if recoveryAggressive then task.defer(function() if hum.Parent then hum:ChangeState(Enum.HumanoidStateType.Running) end end) end
+     lastRecoveryReason="StateChanged anti-stun";lastRecoveryAt=os.clock()
+     if recoveryStatusLabel and recoveryStatusLabel.Parent then recoveryStatusLabel.Text="Last recovery: StateChanged anti-stun";recoveryStatusLabel.TextColor3=T.ok end
+    end)
+   end
+   if antiRagdoll and (newState==Enum.HumanoidStateType.Ragdoll or newState==Enum.HumanoidStateType.FallingDown) then
+    pcall(function()
+     hum.PlatformStand=false
+     hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+     if recoveryAggressive then task.defer(function() if hum.Parent then hum:ChangeState(Enum.HumanoidStateType.Running) end end) end
+     lastRecoveryReason="StateChanged anti-ragdoll";lastRecoveryAt=os.clock()
+     if recoveryStatusLabel and recoveryStatusLabel.Parent then recoveryStatusLabel.Text="Last recovery: StateChanged anti-ragdoll";recoveryStatusLabel.TextColor3=T.ok end
+    end)
+   end
+  end)
+ end
+ local function onChar(char)
+  local h=char and char:FindFirstChildOfClass("Humanoid") or (char and char:WaitForChild("Humanoid",3))
+  if h then bindRecoveryState(h) end
+ end
+ if LP.Character then task.defer(onChar,LP.Character) end
+ connect(LP.CharacterAdded,onChar)
  local accumulator=0
  connect(RS.Heartbeat,function(dt)
   if not alive then return end
@@ -3477,12 +3489,92 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
     local look=Vector3.new(camera.CFrame.LookVector.X,0,camera.CFrame.LookVector.Z);if look.Magnitude>.01 then orientation.CFrame=CFrame.lookAt(Vector3.zero,look.Unit) end;root.AssemblyAngularVelocity=Vector3.zero
    else velocity.VectorVelocity=Vector3.zero end
   elseif flightRoot then stopFlight() end
-  accumulator+=dt;if accumulator<.15 then return end;accumulator=0
-  if permitted and not flightRoot and hum and hum.Health>0 then
-   local state=hum:GetState()
-   if antiStun and (hum.PlatformStand or state==Enum.HumanoidStateType.Physics) then hum.PlatformStand=false;hum:ChangeState(Enum.HumanoidStateType.GettingUp) end
-   if antiRagdoll and (state==Enum.HumanoidStateType.Ragdoll or state==Enum.HumanoidStateType.FallingDown) then hum:ChangeState(Enum.HumanoidStateType.GettingUp) end
+  -- High-rate local recovery (do not share the 0.15s hitbox throttle)
+  if permitted and not flightRoot and character and hum and root and hum.Health>0 and (antiStun or antiRagdoll) then
+   pcall(function()
+    local function mark(reason)
+     lastRecoveryAt=os.clock();lastRecoveryReason=reason
+     if recoveryStatusLabel and recoveryStatusLabel.Parent then
+      recoveryStatusLabel.Text="Last recovery: "..reason.."  ("..string.format("%.1fs",os.clock())..")"
+      recoveryStatusLabel.TextColor3=T.ok
+     end
+    end
+    local function breakLocalRagdollConstraints()
+     if not recoveryBreakConstraints then return 0 end
+     local n=0
+     for _,o in ipairs(character:GetDescendants()) do
+      if o:IsA("BallSocketConstraint") or o:IsA("NoCollisionConstraint") or o:IsA("RigidConstraint") then
+       -- Only disable constraints that look like ragdoll helpers (often added under character)
+       local nm=string.lower(o.Name)
+       if nm:find("ragdoll",1,true) or nm:find("socket",1,true) or nm:find("nocollide",1,true) or o:IsA("BallSocketConstraint") then
+        pcall(function() o.Enabled=false end)
+        n+=1
+       end
+      elseif o:IsA("BodyVelocity") or o:IsA("BodyAngularVelocity") or o:IsA("BodyForce") or o:IsA("BodyThrust") then
+       local nm=string.lower(o.Name)
+       if nm:find("ragdoll",1,true) or nm:find("fling",1,true) or nm:find("stun",1,true) then
+        pcall(function() o:Destroy() end);n+=1
+       end
+      end
+     end
+     return n
+    end
+    local function clearVel()
+     if not recoveryClearVel or not root.Parent then return end
+     -- Soft damp: kill tumble without nuking intentional knockback every frame forever
+     local ang=root.AssemblyAngularVelocity
+     if ang.Magnitude>8 then root.AssemblyAngularVelocity=ang*0.15 end
+     if hum.PlatformStand or hum:GetState()==Enum.HumanoidStateType.Physics
+      or hum:GetState()==Enum.HumanoidStateType.Ragdoll
+      or hum:GetState()==Enum.HumanoidStateType.FallingDown then
+      local v=root.AssemblyLinearVelocity
+      root.AssemblyLinearVelocity=Vector3.new(v.X*0.35,math.min(v.Y,12),v.Z*0.35)
+     end
+    end
+    local function forceUp(reason)
+     pcall(function() hum.PlatformStand=false end)
+     pcall(function() hum.Sit=false end)
+     pcall(function() hum.AutoRotate=true end)
+     pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
+     if recoveryAggressive then
+      task.defer(function()
+       if not hum.Parent or hum.Health<=0 then return end
+       pcall(function()
+        local st=hum:GetState()
+        if st==Enum.HumanoidStateType.GettingUp or st==Enum.HumanoidStateType.Freefall
+         or st==Enum.HumanoidStateType.Physics or st==Enum.HumanoidStateType.Ragdoll
+         or st==Enum.HumanoidStateType.FallingDown then
+         hum:ChangeState(Enum.HumanoidStateType.Running)
+        end
+       end)
+      end)
+     end
+     clearVel()
+     mark(reason)
+    end
+
+    local state=hum:GetState()
+    -- Anti-stun: upright lock / physics lock / sit
+    if antiStun then
+     if hum.PlatformStand then forceUp("PlatformStand cleared") end
+     if hum.Sit then pcall(function() hum.Sit=false end);mark("Sit cleared") end
+     if state==Enum.HumanoidStateType.Physics then forceUp("Physics -> GettingUp") end
+     if state==Enum.HumanoidStateType.Seated then pcall(function() hum.Sit=false;hum:ChangeState(Enum.HumanoidStateType.GettingUp) end);mark("Seated exit") end
+    end
+    -- Anti-ragdoll: knockdown states + local constraints
+    if antiRagdoll then
+     if state==Enum.HumanoidStateType.Ragdoll or state==Enum.HumanoidStateType.FallingDown then
+      local broken=breakLocalRagdollConstraints()
+      forceUp(state==Enum.HumanoidStateType.Ragdoll and ("Ragdoll exit"..(broken>0 and (" +"..broken.." constraints") or "")) or "FallingDown exit")
+     elseif recoveryAggressive then
+      -- Motor6Ds sometimes go limp while still "Running"; soft constraint pass
+      breakLocalRagdollConstraints()
+     end
+    end
+   end)
   end
+
+  accumulator+=dt;if accumulator<.15 then return end;accumulator=0
   if expand and permitted then
    local keep={}
    local myRoot=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
@@ -3564,9 +3656,15 @@ if not okFX then warn("Popup section failed (rest of script still loaded): "..to
   end
  end)
  local function cleanup()
-  if not alive then return end;alive=false;fly=false;expand=false;punchExpand=false;up=false;down=false;stopFlight();restoreBoxes();clearPunchVisuals()
+  if not alive then return end
+  alive=false;fly=false;expand=false;punchExpand=false;antiStun=false;antiRagdoll=false;up=false;down=false
+  stopFlight();restoreBoxes();clearPunchVisuals()
+  if recoveryStateConn then recoveryStateConn:Disconnect();recoveryStateConn=nil end
  end
- connect(LP.CharacterRemoving,function() up=false;down=false;stopFlight();restoreBoxes();clearPunchVisuals() end)
+ connect(LP.CharacterRemoving,function()
+  up=false;down=false;stopFlight();restoreBoxes();clearPunchVisuals()
+  if recoveryStateConn then recoveryStateConn:Disconnect();recoveryStateConn=nil end
+ end)
  connect(gui.Destroying,cleanup);connect(unload.Activated,cleanup)
 end)
 
