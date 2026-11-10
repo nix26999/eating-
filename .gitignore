@@ -2054,33 +2054,43 @@ end)
 
 
 ;__JJSBoot:run("Auto Parry - state-aware animation guard",function()
- local S={alive=true,on=false,focused=true,range=12,hold=.30,maxAge=.40,gap=.12,last=-math.huge,backend=nil,owner=nil,gen=0,poll=0,scan=nil,links={},hooks={},models={},jobs={},ids={},manual={},meta={},metaCount=0,logs={},logKeys={},dirty=true,logClock=0}
- local autoFace,allowHit,pauseMoving,pauseAction=false,false,true,false
- local lookAhead=0;local blockAttributes={};local filter,sort="Matches","Category"
- local rank={M1=1,Punch=2,Verified=3,Hit=4,Swing=5,Unknown=6,Excluded=7}
+ local S={alive=true,on=false,focused=true,range=12,hold=.35,maxAge=.28,gap=.08,last=-math.huge,backend=nil,owner=nil,gen=0,poll=0,scan=nil,links={},hooks={},models={},jobs={},ids={},manual={},meta={},metaCount=0,logs={},logKeys={},dirty=true,logClock=0}
+ -- Defaults tuned from community JJS notes: M1 startup ~0.16-0.23s, active ~16ms, frontal ~180deg block.
+ local autoFace,allowHit,pauseMoving,pauseAction=true,false,false,false
+ local lookAhead=40;local blockAttributes={};local filter,sort="Matches","Category"
+ local rank={M1=1,Punch=2,Verified=3,Attack=4,Hit=5,Swing=6,Unknown=7,Excluded=8}
  local assets=game:GetService("ReplicatedStorage");local box=card(pages.Combat,"Auto Parry","")
  local function listen(signal,fn) local c=connect(signal,fn);table.insert(S.links,c);return c end
  local function label(text,h) return make("TextLabel",box,{Size=UDim2.new(1,0,0,h or 50),BackgroundTransparency=1,Text=text,TextWrapped=true,TextColor3=T.dim,Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,LayoutOrder=nextOrder(box)+2}) end
- label("Player / NPC animation guard. F input is an attempt, not confirmed parry. Optional horizontal facing; no guessed remotes, projectile IDs or automatic retaliation.",64)
+ label("Player / NPC animation guard for JJS. Holds F (block) on early attack anims. 180deg frontal guard; auto-face ON by default. F is an attempt — not a confirmed perfect block/parry. No guessed remotes, projectiles, or auto-counters.",72)
  local status=label("OFF",44)
  local function say(text) if S.alive and status.Parent then status.Text=text end end
  local function norm(text) return tostring(text or ""):lower():gsub("[^%w]","") end
- local excluded={"hitreaction","hitreact","hitstun","gethit","takinghit","receivedhit","hurt","flinch","stagger","stun","ragdoll","knockback","knockdown","damage","block","parry","counter","emote","dance","idle","walking","running","downslam","downsmash","uppercut","uptilt"}
+ -- Reaction / locomotion / pure defensive anims only. M1 finishers (uppercut/downslam) are attacks and must NOT be excluded.
+ local excluded={"hitreaction","hitreact","hitstun","gethit","takinghit","receivedhit","hurt","flinch","stagger","stun","ragdoll","knockback","knockdown","block","parry","counter","emote","dance","idle","walking","running","walk","run","jump","fall","land","climb","swim","sit","seated","death","die"}
  local function classify(animation,trackName,useMeta)
   if not animation then return "Unknown",nil end
   local id=animation.AnimationId:match("%d+");local names={animation.Name,trackName or ""};local parent=animation.Parent;local depth=0
   while parent and depth<5 and not parent:IsA("Model") and not parent:IsA("Humanoid") and not parent:IsA("Animator") do table.insert(names,parent.Name);parent=parent.Parent;depth+=1 end
   local normalized={}
-  for _,text in ipairs(names) do local n=norm(text);table.insert(normalized,n);for _,bad in ipairs(excluded) do if n:find(bad,1,true) then return "Excluded",id end end;if n=="walk" or n=="run" then return "Excluded",id end end
+  for _,text in ipairs(names) do local n=norm(text);table.insert(normalized,n);for _,bad in ipairs(excluded) do if n:find(bad,1,true) then return "Excluded",id end end end
   if id and S.manual[id] then return "Verified",id end
-  for _,n in ipairs(normalized) do if n:find("m1",1,true) then return "M1",id end end
-  for _,n in ipairs(normalized) do if n:find("punch",1,true) then return "Punch",id end end
+  -- JJS shared M1 string + common finisher names (neutral / uppercut / downslam)
+  for _,n in ipairs(normalized) do
+   if n:find("m1",1,true) or n:find("downslam",1,true) or n:find("downsmash",1,true) or n:find("uppercut",1,true) or n:find("uptilt",1,true) or n:find("finisher",1,true) then return "M1",id end
+  end
+  for _,n in ipairs(normalized) do if n:find("punch",1,true) or n:find("jab",1,true) or n:find("melee",1,true) then return "Punch",id end end
+  for _,n in ipairs(normalized) do
+   if n:find("slash",1,true) or n:find("strike",1,true) or n:find("kick",1,true) or n:find("attack",1,true) or n:find("combo",1,true) then return "Attack",id end
+  end
   for _,n in ipairs(normalized) do if n:find("hit",1,true) then return "Hit",id end end
   for _,n in ipairs(normalized) do if n:find("swing",1,true) then return "Swing",id end end
   if useMeta and id and S.meta[id] then return S.meta[id],id end
   return "Unknown",id
  end
- local function accepted(category) return category=="M1" or category=="Punch" or category=="Verified" or allowHit and (category=="Hit" or category=="Swing") end
+ local function accepted(category)
+  return category=="M1" or category=="Punch" or category=="Verified" or category=="Attack" or (allowHit and (category=="Hit" or category=="Swing"))
+ end
  local function discover(animation)
   if not animation:IsA("Animation") then return end
   local category,id=classify(animation,nil,false);if not id or category=="Unknown" then return end
@@ -2159,9 +2169,10 @@ end)
   if not S.on or not S.alive or character==LP.Character then return end
   local category=log(character,track)
   if not accepted(category) or not track.IsPlaying or track.Speed<=0 or track.TimePosition>S.maxAge then return end
-  if existing and track.TimePosition>.15 then return end
+  -- Existing tracks past early startup are usually already unsafe to react to (JJS M1 startup ~0.16-0.23s).
+  if existing and track.TimePosition>.12 then return end
   local n=0;for _ in pairs(S.jobs) do n+=1 end;if n>=64 then return end
-  S.jobs[track]={character=character,track=track,generation=S.gen,expires=os.clock()+.45}
+  S.jobs[track]={character=character,track=track,generation=S.gen,expires=os.clock()+.55,seenAt=os.clock(),t0=track.TimePosition}
  end
  local function attach(character,humanoid)
   local animator=humanoid.Parent==character and humanoid:FindFirstChildOfClass("Animator");local old=S.hooks[character]
@@ -2174,16 +2185,17 @@ end)
  end
  local repaint=toggle(box,"Auto Parry",function() return S.on end,function(v)
   cancel();S.on=v;S.dirty=true
-  if v then S.scan={{object=assets,index=0}};for c,h in pairs(S.models) do if c:IsDescendantOf(workspace) then attach(c,h);local a=h:FindFirstChildOfClass("Animator");if a then for _,t in ipairs(a:GetPlayingAnimationTracks()) do observe(c,t,true) end end end end;say("ON: close menu to guard. Logging player / NPC tracks.") else S.scan=nil;say("OFF: F released; logs retained.") end
+  if v then S.scan={{object=assets,index=0}};for c,h in pairs(S.models) do if c:IsDescendantOf(workspace) then attach(c,h);local a=h:FindFirstChildOfClass("Animator");if a then for _,t in ipairs(a:GetPlayingAnimationTracks()) do observe(c,t,true) end end end end;say("ON: close menu to guard. JJS M1 startup window active; logging tracks.") else S.scan=nil;say("OFF: F released; logs retained.") end
  end)
  toggle(box,"Face incoming attacker",function() return autoFace end,function(v) autoFace=v;cancel() end)
  toggle(box,"Allow ambiguous Hit / Swing matches",function() return allowHit end,function(v) allowHit=v;cancel();S.dirty=true end)
  toggle(box,"Pause when manually moving",function() return pauseMoving end,function(v) pauseMoving=v;cancel() end)
  toggle(box,"Pause during own Action animations",function() return pauseAction end,function(v) pauseAction=v;cancel() end)
  moduleSlider(box,"Block distance",2,30,12," studs",function() return S.range end,function(v) S.range=v;cancel() end)
- moduleSlider(box,"Block hold",100,600,300," ms",function() return math.floor(S.hold*1000+.5) end,function(v) S.hold=v/1000;cancel() end)
- moduleSlider(box,"Melee motion lookahead",0,100,0," ms",function() return lookAhead end,function(v) lookAhead=v;cancel() end)
- label("Lookahead defaults to 0; it is only a constant-velocity proximity estimate, not a verified impact window. Manual movement pauses facing by default. Action-priority filtering is optional and heuristic.",72)
+ moduleSlider(box,"Block hold",100,600,350," ms",function() return math.floor(S.hold*1000+.5) end,function(v) S.hold=v/1000;cancel() end)
+ moduleSlider(box,"Max anim age (startup window)",80,500,280," ms",function() return math.floor(S.maxAge*1000+.5) end,function(v) S.maxAge=v/1000;cancel() end)
+ moduleSlider(box,"Melee motion lookahead",0,100,40," ms",function() return lookAhead end,function(v) lookAhead=v;cancel() end)
+ label("JJS-tuned defaults: hold 350ms, maxAge 280ms (M1 startup ~160-230ms), frontal face ON, movement pause OFF. Lookahead is a constant-velocity proximity estimate only — not verified hit frames. F is a block attempt; perfect-block windows are move-specific and not claimed.",84)
  local function input(placeholder,height)
   return make("TextBox",box,{Size=UDim2.new(1,0,0,height or 38),Text="",PlaceholderText=placeholder,ClearTextOnFocus=false,BackgroundColor3=T.p2,TextColor3=T.txt,Font=Enum.Font.Code,TextSize=11,LayoutOrder=nextOrder(box)+2})
  end
@@ -2233,11 +2245,18 @@ end)
    elseif autoFace then face(root,enemy) end
   elseif S.on and os.clock()-S.last>=S.gap then
    local good=stateOK(false)
-   local best,bestDistance=nil,math.huge
+   local best,bestDistance,bestAge=nil,math.huge,math.huge
    for track,job in pairs(S.jobs) do
     local category=classify(track.Animation,track.Name,true)
     if job.generation~=S.gen or not accepted(category) or not track.IsPlaying or track.TimePosition>S.maxAge or os.clock()>job.expires or not job.character:IsDescendantOf(workspace) then S.jobs[track]=nil
-    elseif good then local valid,d=threat(job.character,not autoFace);if valid and d<bestDistance then best=job;bestDistance=d end end
+    elseif good then
+     local valid,d=threat(job.character,not autoFace)
+     -- Prefer earliest animation time (more of the ~0.2s startup left), then closest threat.
+     local age=track.TimePosition
+     if valid and (age<bestAge-1e-3 or (math.abs(age-bestAge)<=1e-3 and d<bestDistance)) then
+      best=job;bestDistance=d;bestAge=age
+     end
+    end
    end
    if best then
     local _,h,root=rig();local valid,_,_,enemy=threat(best.character,not autoFace)
